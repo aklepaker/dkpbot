@@ -141,7 +141,7 @@ export class Bot {
         const guildId = message.guild.id;
         const guild = this.client.guilds.cache.find(g => g.id === guildId);
 
-        if (this.dkp[guildId] === undefined && params[1] !== "update") {
+        if (this.dkp[guildId] === undefined && params[1] !== "update" && params[1] !== "help") {
           message.channel.send(`${guild.name} has no DKP data yet. Upload a Monolith DKP file with !dkp update`);
           return;
         }

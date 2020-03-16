@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "watch": "npm bin tsc -p tsconfig.json -w",
-    "build": "npm bin tsc -p tsconfig.json",
+    "watch": "tsc -p tsconfig.json -w",
+    "build": "tsc -p tsconfig.json",
     "start": "npm run build && node dist/index.js",
     "debug": "node --nolazy --inspect-brk=9229 dist/index.js"
   },

@@ -9,11 +9,13 @@ export class Bot {
   private readonly token: string;
   private parser: Parser;
   private dkp: object[] = [];
+  private trigger: string;
 
   constructor() {
     this.client = new Client();
     this.token = process.env.TOKEN;
     this.parser = new Parser("dkp.lua");
+    this.trigger = "!dkpb";
   }
 
   private Init = async (): Promise<void> => {
@@ -127,7 +129,7 @@ export class Bot {
 
   public listen(): Promise<string> {
     this.client.on("ready", () => {
-      this.client.user.setActivity({ type: "LISTENING", name: `!dkp help` });
+      this.client.user.setActivity({ type: "LISTENING", name: `${this.trigger} help` });
       this.Init();
     });
 
@@ -135,14 +137,21 @@ export class Bot {
       console.log(`Joined ${guild.name}`);
     });
 
+    this.client.on("guildDelete", (guild: Guild) => {
+      this.parser.RemoveFile(guild.id);
+      console.log(`Removed from ${guild.name}`);
+    });
+
     this.client.on("message", async (message: Message) => {
-      if (message.content.startsWith("!dkp")) {
+      if (message.content.startsWith(this.trigger)) {
         const params = message.content.split(" ");
         const guildId = message.guild.id;
         const guild = this.client.guilds.cache.find(g => g.id === guildId);
 
         if (this.dkp[guildId] === undefined && params[1] !== "update" && params[1] !== "help") {
-          message.channel.send(`${guild.name} has no DKP data yet. Upload a Monolith DKP file with !dkp update`);
+          message.channel.send(
+            `${guild.name} has no DKP data yet. Upload a Monolith DKP file with ${this.trigger} update`
+          );
           return;
         }
 
@@ -271,12 +280,12 @@ export class Bot {
     );
     embed.setDescription(`Check your DKP status, or search who got that shiny item in the last raid.`);
     // embed.setDescription("!help");
-    embed.addField("!dkp help", "Show this screen");
-    embed.addField("!dkp search <item>", "Search all loots for the given item");
-    embed.addField("!dkp <user> | all", "Show current DKP status for the given user, or all users");
-    embed.addField("!dkp loot <user>", "Show all items a user have looted");
-    embed.addField("!dkp class <class>", "Show DKP status for a given class");
-    embed.addField("!dkp update", "Update the DKP table from a new file");
+    embed.addField(`${this.trigger} help`, "Show this screen");
+    embed.addField(`${this.trigger} search <item>`, "Search all loots for the given item");
+    embed.addField(`${this.trigger} <user> | all`, "Show current DKP status for the given user, or all users");
+    embed.addField(`${this.trigger} loot <user>`, "Show all items a user have looted");
+    embed.addField(`${this.trigger} class <class>`, "Show DKP status for a given class");
+    embed.addField(`${this.trigger} update`, "Update the DKP table from a new file");
     embed.setFooter(`Currently serving ${serversJoined} servers`);
     embed.setTimestamp();
 

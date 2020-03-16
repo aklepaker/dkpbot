@@ -55,6 +55,16 @@ export class Parser {
     });
   };
 
+  public RemoveFile = (guildId: string): void => {
+    const fileName = `${guildId}_dkp.lua`;
+    fs.unlink(fileName, err => {
+      if (err) {
+        console.log("Error: ", err);
+        throw err;
+      }
+    });
+  };
+
   public ParseData = async (data: string): Promise<object> => {
     return await this.GetSegments(data);
   };

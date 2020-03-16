@@ -1,0 +1,8 @@
+**/dist
+**/node_modules
+.vscode
+*.lua
+package-lock.json
+*.todo
+*.code-workspace
+.env

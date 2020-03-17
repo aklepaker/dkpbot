@@ -4,6 +4,8 @@ import * as https from "https";
 import { sortBy } from "lodash";
 import { Parser } from "./parser";
 import { version } from "./version";
+import { connect, Schema, model } from "mongoose";
+import { BotGuild } from "./objects/botGuild";
 
 export class Bot {
   private client: Client;
@@ -12,14 +14,21 @@ export class Bot {
   private dkp: object[] = [];
   private trigger: string;
   private listeningIndex: number;
-
   constructor() {
     console.log(`DKPbot v${version}`);
+    const url = `mongodb://${process.env.MONGO_USERNAME}:${process.env.MONGO_PASSWORD}@${process.env.MONGO_HOSTNAME}:${process.env.MONGO_PORT}/${process.env.MONGO_DB}?authSource=admin`;
     this.client = new Client();
     this.token = process.env.TOKEN;
     this.parser = new Parser("dkp.lua");
     this.trigger = "!dkpb";
     this.listeningIndex = 0;
+
+    try {
+      console.log(url);
+      connect(url, { useNewUrlParser: true, useUnifiedTopology: true });
+    } catch (error) {
+      console.error("Failed connecting", error);
+    }
   }
 
   private Init = async (): Promise<void> => {
@@ -30,6 +39,14 @@ export class Bot {
         this.dkp[guild.id] = {};
       }
     });
+  };
+
+  private DBInit = async (guildId: string): Promise<void> => {
+    const botGuildSchema = new Schema();
+    botGuildSchema.loadClass(BotGuild);
+    const botGuildModel = model("BotGuild", botGuildSchema);
+    const guildInstance = botGuildModel.findOne({ guildId });
+    const guild = (await guildInstance).toObject();
   };
 
   public listen(): Promise<string> {

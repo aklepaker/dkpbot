@@ -134,19 +134,31 @@ export class Bot {
         items.unshift(item);
       }
     });
+
+    if (items.length <= 0) {
+      message.channel.send(`No match searching for '${searchItem}'`);
+      return;
+    }
+
     message.channel.send(this.CreateSearchEmbed(items, searchItem));
   }
 
   private ShowLootByPlayer(params: string[], message: Message): void {
     const guildId = message.guild.id;
-    const searchItem = params[2];
+    const player = params[2];
     const items = [];
 
     this.dkp[guildId]["MonDKP_Loot"].forEach(item => {
-      if (item.player.toLocaleLowerCase() == searchItem.toLocaleLowerCase()) {
+      if (item.player.toLocaleLowerCase() == player.toLocaleLowerCase()) {
         items.unshift(item);
       }
     });
+
+    if (items.length <= 0) {
+      message.channel.send(`It seems like ${player} has no loot yet`);
+      return;
+    }
+
     message.channel.send(this.CreateLootEmbed(items));
   }
 
@@ -197,18 +209,30 @@ export class Bot {
         items.unshift(item);
       }
     });
+
+    if (items.length <= 0) {
+      message.channel.send(`Sorry, got no results for class '${searchItem}'`);
+      return;
+    }
+
     message.channel.send(this.CreateDKPStatusEmbed(items, searchItem));
   }
 
   private ShowUserDKP(params: string[], message: Message): void {
     const guildId = message.guild.id;
+    const items = [];
     this.dkp[guildId]["MonDKP_DKPTable"].forEach(item => {
       if (item.player.toLocaleLowerCase() == params[1].toLocaleLowerCase()) {
-        const items = [];
         items.push(item);
-        message.channel.send(this.CreateDKPStatusEmbed(items, params[1]));
       }
     });
+
+    if (items.length <= 0) {
+      message.channel.send(`Sorry, I don't know '${params[1]}'`);
+      return;
+    }
+
+    message.channel.send(this.CreateDKPStatusEmbed(items, params[1]));
   }
 
   private ShowAllUsersDKP(params: string[], message: Message): void {
@@ -301,7 +325,6 @@ export class Bot {
   }
 
   private CreateLootEmbed = (items: any[]): MessageEmbed => {
-    console.log(items.length);
     if (items.length <= 0) {
       return null;
     }
@@ -325,7 +348,7 @@ export class Bot {
 
       const time = format(new Date(item.date * 1000), "dd.MM.yyyy");
       timeArray.unshift(time);
-      itemArray.unshift(`${lootItem}(https://classic.wowhead.com/item=${lootItemId})`);
+      itemArray.unshift(`${lootItem}`);
       costArray.unshift(item.cost.toString());
     });
 
@@ -358,7 +381,7 @@ export class Bot {
       const lootItemId = lootItemIdTemp.substring(0, lootItemIdTemp.indexOf(":"));
       const time = format(new Date(item.date * 1000), "dd.MM.yyyy");
 
-      itemArray.unshift(`${lootItem}(https://classic.wowhead.com/item=${lootItemId})`);
+      itemArray.unshift(`${lootItem}`);
       playerArray.unshift(item.player);
       timeArray.unshift(time);
     });
@@ -387,7 +410,7 @@ export class Bot {
     embed.setTimestamp();
 
     items.forEach(item => {
-      const lootItem = item.loot.substring(item.loot.indexOf("[") + 1, item.loot.lastIndexOf("]"));
+      const lootItem = item.loot.substring(item.loot.indexOf("["), item.loot.lastIndexOf("]") + 1);
       const lootItemIdTemp = item.loot.substring(item.loot.indexOf("Hitem:") + 6);
       const lootItemId = lootItemIdTemp.substring(0, lootItemIdTemp.indexOf(":"));
       const cost = item.cost;

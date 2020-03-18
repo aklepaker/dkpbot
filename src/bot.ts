@@ -367,13 +367,16 @@ export class Bot {
 
     const playerArray = [];
     const timeArray = [];
+    const costArray = [];
     const itemArray = [];
 
     embed.type = "rich";
     embed.setTitle(`Got ${items.length} result(s) searching for '${search}' `).setColor("#ffffff");
     embed.setTimestamp();
 
-    items.forEach(item => {
+    const sortedItems = sortBy(items, ["cost"]);
+
+    sortedItems.reverse().forEach(item => {
       const lootItem = item.loot.substring(item.loot.indexOf("["), item.loot.lastIndexOf("]") + 1);
 
       // lootItem
@@ -384,11 +387,13 @@ export class Bot {
       itemArray.unshift(`${lootItem}`);
       playerArray.unshift(item.player);
       timeArray.unshift(time);
+      costArray.unshift(item.cost);
     });
 
     embed.addField("Item", itemArray, true);
     embed.addField("Player", playerArray, true);
-    embed.addField("Date", timeArray, true);
+    // embed.addField("Date", timeArray, true);
+    embed.addField("Cost", costArray, true);
 
     return embed;
   };

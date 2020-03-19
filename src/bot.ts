@@ -1,11 +1,12 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { addDays, addSeconds, format, getUnixTime, parse } from "date-fns";
 import { Client, Guild, Message, MessageEmbed } from "discord.js";
 import * as https from "https";
 import { sortBy } from "lodash";
+import { connect } from "mongoose";
+import { GuildObject, GuildObjectBase } from "./objects/botGuild";
 import { Parser } from "./parser";
 import { version } from "./version";
-import { connect, Schema, model } from "mongoose";
-import { GuildObject, NewGuildObject, GuildObjectBase } from "./objects/botGuild";
 
 export class Bot {
   private client: Client;
@@ -106,7 +107,7 @@ export class Bot {
   private async GetGuild(guildId: string): Promise<GuildObjectBase> {
     let guild = null;
 
-    guild = await GuildObject.findOne({ guildId }, async (err, res) => {
+    guild = await GuildObject.findOne({ guildId }, async err => {
       if (err) {
         console.error(err);
       }
@@ -420,10 +421,6 @@ export class Bot {
     items.forEach(item => {
       const lootItem = item.loot.substring(item.loot.indexOf("["), item.loot.lastIndexOf("]") + 1);
 
-      // lootItem
-      const lootItemIdTemp = item.loot.substring(item.loot.indexOf("Hitem:") + 6);
-      const lootItemId = lootItemIdTemp.substring(0, lootItemIdTemp.indexOf(":"));
-
       const time = format(new Date(item.date * 1000), "dd.MM.yyyy");
       timeArray.unshift(time);
       itemArray.unshift(`${lootItem}`);
@@ -456,10 +453,6 @@ export class Bot {
 
     sortedItems.reverse().forEach(item => {
       const lootItem = item.loot.substring(item.loot.indexOf("["), item.loot.lastIndexOf("]") + 1);
-
-      // lootItem
-      const lootItemIdTemp = item.loot.substring(item.loot.indexOf("Hitem:") + 6);
-      const lootItemId = lootItemIdTemp.substring(0, lootItemIdTemp.indexOf(":"));
       const time = format(new Date(item.date * 1000), "dd.MM.yyyy");
 
       itemArray.unshift(`${lootItem}`);
@@ -470,7 +463,6 @@ export class Bot {
 
     embed.addField("Item", itemArray, true);
     embed.addField("Player", playerArray, true);
-    // embed.addField("Date", timeArray, true);
     embed.addField("Cost", costArray, true);
 
     return embed;
@@ -494,8 +486,6 @@ export class Bot {
 
     items.forEach(item => {
       const lootItem = item.loot.substring(item.loot.indexOf("["), item.loot.lastIndexOf("]") + 1);
-      const lootItemIdTemp = item.loot.substring(item.loot.indexOf("Hitem:") + 6);
-      const lootItemId = lootItemIdTemp.substring(0, lootItemIdTemp.indexOf(":"));
       const cost = item.cost;
 
       itemArray.unshift(`${lootItem}`);

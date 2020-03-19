@@ -1,8 +1,9 @@
 # Description
 
 Main purpose of this bot is to enable searching of the guilds DKP table without beeing logged in to the game.
-Use `!dkpb update` to make the bot request a file for update.
-Use the file normaly located here: `C:\Program Files(x86)\World of Warcraft\_classic_\WTF\Account\<USERNAME>\SavedVariables\MonolithDKP.lua` when uploading a new DKP table.
+Using `!dkpb update` makes the bot request a file for update, and when the file is received by the bot it parses the file and stores the DKP loot table and history in a MongoDB database making it searchable by the bot when a user issues a `!dkpb` command.
+
+Monolith DKP file is in most cases located here: `C:\Program Files(x86)\World of Warcraft\_classic_\WTF\Account\<USERNAME>\SavedVariables\MonolithDKP.lua` when uploading a new DKP table.
 
 # Usage
 

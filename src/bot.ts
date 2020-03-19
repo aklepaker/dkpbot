@@ -163,6 +163,10 @@ export class Bot {
           case "class": {
             this.ShowClassDKP(params, message);
           }
+
+          case "talents": {
+            this.ShowClassTalents(params, message);
+          }
         }
       } else {
         switch (params[1]) {
@@ -180,7 +184,7 @@ export class Bot {
 
           case "help":
             {
-              await this.ShowDKPHelp(message);
+              await this.ShowHelp(message);
             }
             break;
           default: {
@@ -287,6 +291,24 @@ export class Bot {
     message.channel.send(this.CreateDKPStatusEmbed(items, searchItem));
   }
 
+  private ShowClassTalents(params: string[], message: Message): void {
+    const guildId = message.guild.id;
+    const searchItem = params[2];
+    const items = [];
+    this.GetDKPTable(guildId, "MonDKP_DKPTable").forEach(item => {
+      if (item.class.toLocaleLowerCase() == params[2].toLocaleLowerCase()) {
+        items.unshift(item);
+      }
+    });
+
+    if (items.length <= 0) {
+      message.channel.send(`Sorry, got no results for class '${searchItem}'`);
+      return;
+    }
+
+    message.channel.send(this.CreateClassTalentsEmbed(items, searchItem));
+  }
+
   private ShowUserDKP(params: string[], message: Message): void {
     const guildId = message.guild.id;
     const items = [];
@@ -314,7 +336,7 @@ export class Bot {
     message.channel.send(this.CreateDKPStatusEmbed(items, searchItem));
   }
 
-  private ShowDKPHelp(message: Message): void {
+  private ShowHelp(message: Message): void {
     const embed = new MessageEmbed();
 
     const serversJoined = this.client.guilds.cache.size;
@@ -343,6 +365,10 @@ export class Bot {
     embed.addField(
       "Show DKP status for a given class",
       `${this.trigger} class <class>\n\`\`\`${this.trigger} class priest\`\`\``
+    );
+    embed.addField(
+      "Show talents for a given class",
+      `${this.trigger} talents <class>\n\`\`\`${this.trigger} talents priest\`\`\``
     );
     embed.addField("Update the DKP table from a new Monolith DKP file", `${this.trigger} update`);
     embed.setFooter(`v${version} - Currently serving ${serversJoined} servers`);
@@ -523,6 +549,33 @@ export class Bot {
     embed.addField("Player", playerArray, true);
     embed.addField("Class", classArray, true);
     embed.addField("DKP", dkpArray, true);
+
+    embed.setTimestamp();
+
+    return embed;
+  }
+
+  private CreateClassTalentsEmbed(items: any, search: string): MessageEmbed {
+    const embed = new MessageEmbed();
+
+    embed.setTitle(`Current talents for ${search}`).setColor("#ffffff");
+
+    const playerArray = [];
+    const specArray = [];
+    const classArray = [];
+
+    items = sortBy(items, ["player"]).reverse();
+
+    items.forEach(item => {
+      playerArray.unshift(item.player);
+      specArray.unshift(item.spec);
+      classArray.unshift(item.class[0] + item.class.substring(1).toLocaleLowerCase());
+    });
+
+    embed.type = "rich";
+    embed.addField("Player", playerArray, true);
+    embed.addField("Class", classArray, true);
+    embed.addField("Spec", specArray, true);
 
     embed.setTimestamp();
 

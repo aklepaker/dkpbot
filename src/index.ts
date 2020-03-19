@@ -5,7 +5,7 @@ let bot = new Bot();
 bot
   .listen()
   .then(() => {
-    console.log("Ready!");
+    console.log("Initialize OK, listening for requests");
   })
   .catch(error => {
     console.log("Error: ", error);

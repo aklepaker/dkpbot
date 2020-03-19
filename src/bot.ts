@@ -15,7 +15,7 @@ export class Bot {
   private trigger: string;
   private listeningIndex: number;
   constructor() {
-    console.log(`DKPbot v${version}`);
+    console.info(`DKPbot v${version}`);
     const url = `mongodb://${process.env.MONGO_USERNAME}:${process.env.MONGO_PASSWORD}@${process.env.MONGO_HOSTNAME}:${process.env.MONGO_PORT}/${process.env.MONGO_DB}?authSource=admin`;
     this.client = new Client();
     this.token = process.env.TOKEN;
@@ -30,7 +30,7 @@ export class Bot {
         autoIndex: true,
         useCreateIndex: true
       }).then(result => {
-        console.log("MongoDB Connected:", result.connection.readyState === 1 ? true : false);
+        console.info("MongoDB Connected:", result.connection.readyState === 1 ? true : false);
       });
     } catch (error) {
       console.error("Failed connecting", error);
@@ -93,11 +93,11 @@ export class Bot {
   private async OnGuildLeave(guild: Guild): Promise<void> {
     const dbGuild = await this.GetGuild(guild.id);
     dbGuild.remove();
-    console.log(`Removed from ${guild.name}`);
+    console.info(`Removed from ${guild.name}`);
   }
 
   private async OnGuildJoin(guild: Guild): Promise<void> {
-    console.log(`Joined ${guild.name}`);
+    console.info(`Joined ${guild.name}`);
     const dbGuild = await this.GetGuild(guild.id);
     dbGuild.guildName = guild.name;
     this.dkp[guild.id] = dbGuild;
@@ -108,7 +108,7 @@ export class Bot {
 
     guild = await GuildObject.findOne({ guildId }, async (err, res) => {
       if (err) {
-        console.log(err);
+        console.error(err);
       }
     });
     if (guild === null) {
@@ -118,7 +118,6 @@ export class Bot {
   }
 
   private GetDKPTable(guildId: string, table: string): Record<string, any> {
-    console.log(this.dkp[guildId]);
     try {
       if (this.dkp[guildId].dkptable[table]) {
         return this.dkp[guildId].dkptable[table];
@@ -245,7 +244,7 @@ export class Bot {
       dateFrom = getUnixTime(dateBase);
       dateTo = getUnixTime(addSeconds(addDays(dateBase, +1), -1));
     } catch (err) {
-      console.log(err);
+      console.error(err);
     }
 
     if (zone.length === 0) {

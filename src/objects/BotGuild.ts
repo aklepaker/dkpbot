@@ -1,20 +1,23 @@
 /* eslint-disable @typescript-eslint/no-empty-interface */
 import { Schema, Document, Model, model } from "mongoose";
 
-const GuildSchema = new Schema({
-  guildId: {
-    type: String,
-    required: true,
-    unique: true
+const GuildSchema = new Schema(
+  {
+    guildId: {
+      type: String,
+      required: true,
+      unique: true
+    },
+    guildName: {
+      type: String,
+      unique: false,
+      required: false
+    },
+    dkptable: Schema.Types.Mixed,
+    config: Schema.Types.Mixed
   },
-  dkptable: Object,
-  config: {
-    type: Object,
-    unique: true,
-    required: true,
-    lowercase: false
-  }
-});
+  { typePojoToMixed: false }
+);
 
 interface GuildConfig {
   trigger: string;
@@ -22,7 +25,8 @@ interface GuildConfig {
 
 interface GuildSchema extends Document {
   guildId: string;
-  dkptable: object;
+  guildName: string;
+  dkptable: Record<string, any>;
   config: GuildConfig;
 }
 

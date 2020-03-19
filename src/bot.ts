@@ -24,8 +24,12 @@ export class Bot {
     this.listeningIndex = 0;
 
     try {
-      console.log(url);
-      connect(url, { useNewUrlParser: true, useUnifiedTopology: true, autoIndex: true }).then(result => {
+      connect(url, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+        autoIndex: true,
+        useCreateIndex: true
+      }).then(result => {
         console.log("MongoDB Connected:", result.connection.readyState === 1 ? true : false);
       });
     } catch (error) {
@@ -39,8 +43,7 @@ export class Bot {
         let importGuild = null;
         let dkpTable = null;
         importGuild = await this.GetGuild(guild.id);
-        console.log(importGuild.dkptable);
-        if (importGuild === null) {
+        if (this.parser.FileExists(guild.id)) {
           try {
             dkpTable = await this.parser.Parse(guild.id);
             importGuild.dkptable = dkpTable;
@@ -73,13 +76,12 @@ export class Bot {
     });
 
     this.client.on("guildCreate", async (guild: Guild) => {
-      console.log(`Joined ${guild.name}`);
-      this.dkp[guild.id] = await this.GetGuild(guild.id);
+      await this.OnGuildJoin(guild);
     });
 
     this.client.on("guildDelete", async (guild: Guild) => {
-      this.parser.RemoveFile(guild.id);
-      console.log(`Removed from ${guild.name}`);
+      // this.parser.RemoveFile(guild.id);
+      await this.OnGuildLeave(guild);
     });
 
     this.client.on("message", async (message: Message) => {
@@ -88,11 +90,27 @@ export class Bot {
 
     return this.client.login(this.token);
   }
+  private async OnGuildLeave(guild: Guild): Promise<void> {
+    const dbGuild = await this.GetGuild(guild.id);
+    dbGuild.remove();
+    console.log(`Removed from ${guild.name}`);
+  }
+
+  private async OnGuildJoin(guild: Guild): Promise<void> {
+    console.log(`Joined ${guild.name}`);
+    const dbGuild = await this.GetGuild(guild.id);
+    dbGuild.guildName = guild.name;
+    this.dkp[guild.id] = dbGuild;
+  }
+
   private async GetGuild(guildId: string): Promise<GuildObjectBase> {
     let guild = null;
 
-    guild = await GuildObject.findOne({ guildId });
-
+    guild = await GuildObject.findOne({ guildId }, async (err, res) => {
+      if (err) {
+        console.log(err);
+      }
+    });
     if (guild === null) {
       guild = await new GuildObject({ guildId, config: { trigger: "!dkpb" } });
     }
@@ -101,11 +119,15 @@ export class Bot {
 
   private GetDKPTable(guildId: string, table: string): Record<string, any> {
     console.log(this.dkp[guildId]);
-    if (this.dkp[guildId].dkptable[table]) {
-      return this.dkp[guildId].dkptable[table];
-    } else {
+    try {
+      if (this.dkp[guildId].dkptable[table]) {
+        return this.dkp[guildId].dkptable[table];
+      }
+    } catch (error) {
+      console.error(error.message);
       return [];
     }
+    return [];
   }
 
   private async ParseMessage(message: Message): Promise<void> {
@@ -355,12 +377,14 @@ export class Bot {
                 try {
                   const content = await this.parser.ParseData(data);
                   const guildData = this.dkp[guildId] as GuildObjectBase;
+                  guildData.guildName = message.guild.name;
                   guildData.dkptable = content;
-                  try {
-                    guildData.save();
-                  } catch (error) {
-                    console.log(error);
-                  }
+                  guildData.markModified("dkptable");
+                  await guildData.save({}, err => {
+                    if (err) {
+                      console.error(err);
+                    }
+                  });
                   this.dkp[guildId] = guildData;
                   // this.parser.SaveFile(data, guildId);
 

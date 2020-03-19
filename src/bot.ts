@@ -1,7 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { addDays, addSeconds, format, getUnixTime, parse } from "date-fns";
 import { Client, Guild, Message, MessageEmbed } from "discord.js";
 import * as https from "https";
 import { sortBy } from "lodash";
+import { connect } from "mongoose";
+import { GuildObject, GuildObjectBase } from "./objects/botGuild";
 import { Parser } from "./parser";
 import { version } from "./version";
 
@@ -9,28 +12,56 @@ export class Bot {
   private client: Client;
   private readonly token: string;
   private parser: Parser;
-  private dkp: object[] = [];
+  private dkp: GuildObjectBase[] = [] as GuildObjectBase[];
   private trigger: string;
   private listeningIndex: number;
-
   constructor() {
-    console.log(`DKPbot v${version}`);
+    console.info(`DKPbot v${version}`);
+    const url = `mongodb://${process.env.MONGO_USERNAME}:${process.env.MONGO_PASSWORD}@${process.env.MONGO_HOSTNAME}:${process.env.MONGO_PORT}/${process.env.MONGO_DB}?authSource=admin`;
     this.client = new Client();
     this.token = process.env.TOKEN;
     this.parser = new Parser("dkp.lua");
     this.trigger = "!dkpb";
     this.listeningIndex = 0;
+
+    try {
+      connect(url, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+        autoIndex: true,
+        useCreateIndex: true
+      }).then(result => {
+        console.info("MongoDB Connected:", result.connection.readyState === 1 ? true : false);
+      });
+    } catch (error) {
+      console.error("Failed connecting", error);
+    }
   }
 
-  private Init = async (): Promise<void> => {
+  private async Init(): Promise<void> {
     this.client.guilds.cache.forEach(async (guild: Guild) => {
       try {
-        this.dkp[guild.id] = await this.parser.Parse(guild.id);
+        let importGuild = null;
+        let dkpTable = null;
+        importGuild = await this.GetGuild(guild.id);
+        if (this.parser.FileExists(guild.id)) {
+          try {
+            dkpTable = await this.parser.Parse(guild.id);
+            importGuild.dkptable = dkpTable;
+            await importGuild.save();
+            this.parser.RemoveFile(guild.id);
+          } catch (error) {
+            // no file, skip it.
+          }
+        }
+        this.dkp[guild.id] = importGuild;
       } catch (error) {
+        const err = error as Error;
+        console.error(err);
         this.dkp[guild.id] = {};
       }
     });
-  };
+  }
 
   public listen(): Promise<string> {
     this.client.on("ready", () => {
@@ -45,13 +76,13 @@ export class Bot {
       this.Init();
     });
 
-    this.client.on("guildCreate", (guild: Guild) => {
-      console.log(`Joined ${guild.name}`);
+    this.client.on("guildCreate", async (guild: Guild) => {
+      await this.OnGuildJoin(guild);
     });
 
-    this.client.on("guildDelete", (guild: Guild) => {
-      this.parser.RemoveFile(guild.id);
-      console.log(`Removed from ${guild.name}`);
+    this.client.on("guildDelete", async (guild: Guild) => {
+      // this.parser.RemoveFile(guild.id);
+      await this.OnGuildLeave(guild);
     });
 
     this.client.on("message", async (message: Message) => {
@@ -59,6 +90,44 @@ export class Bot {
     });
 
     return this.client.login(this.token);
+  }
+  private async OnGuildLeave(guild: Guild): Promise<void> {
+    const dbGuild = await this.GetGuild(guild.id);
+    dbGuild.remove();
+    console.info(`Removed from ${guild.name}`);
+  }
+
+  private async OnGuildJoin(guild: Guild): Promise<void> {
+    console.info(`Joined ${guild.name}`);
+    const dbGuild = await this.GetGuild(guild.id);
+    dbGuild.guildName = guild.name;
+    this.dkp[guild.id] = dbGuild;
+  }
+
+  private async GetGuild(guildId: string): Promise<GuildObjectBase> {
+    let guild = null;
+
+    guild = await GuildObject.findOne({ guildId }, async err => {
+      if (err) {
+        console.error(err);
+      }
+    });
+    if (guild === null) {
+      guild = await new GuildObject({ guildId, config: { trigger: "!dkpb" } });
+    }
+    return guild;
+  }
+
+  private GetDKPTable(guildId: string, table: string): Record<string, any> {
+    try {
+      if (this.dkp[guildId].dkptable[table]) {
+        return this.dkp[guildId].dkptable[table];
+      }
+    } catch (error) {
+      console.error(error.message);
+      return [];
+    }
+    return [];
   }
 
   private async ParseMessage(message: Message): Promise<void> {
@@ -129,7 +198,7 @@ export class Bot {
       .join(" ")
       .toLocaleLowerCase();
     const items = [];
-    this.dkp[guildId]["MonDKP_Loot"].forEach(item => {
+    this.GetDKPTable(guildId, "MonDKP_Loot").forEach(item => {
       if (item.loot.toLocaleLowerCase().indexOf(searchItem) > -1) {
         items.unshift(item);
       }
@@ -148,7 +217,7 @@ export class Bot {
     const player = params[2];
     const items = [];
 
-    this.dkp[guildId]["MonDKP_Loot"].forEach(item => {
+    this.GetDKPTable(guildId, "MonDKP_Loot").forEach(item => {
       if (item.player.toLocaleLowerCase() == player.toLocaleLowerCase()) {
         items.unshift(item);
       }
@@ -176,7 +245,7 @@ export class Bot {
       dateFrom = getUnixTime(dateBase);
       dateTo = getUnixTime(addSeconds(addDays(dateBase, +1), -1));
     } catch (err) {
-      console.log(err);
+      console.error(err);
     }
 
     if (zone.length === 0) {
@@ -184,7 +253,7 @@ export class Bot {
       return;
     }
 
-    this.dkp[guildId]["MonDKP_Loot"].forEach(item => {
+    this.GetDKPTable(guildId, "MonDKP_Loot").forEach(item => {
       if (
         item.date < dateTo &&
         item.date > dateFrom &&
@@ -204,7 +273,7 @@ export class Bot {
     const guildId = message.guild.id;
     const searchItem = params[2];
     const items = [];
-    this.dkp[guildId]["MonDKP_DKPTable"].forEach(item => {
+    this.GetDKPTable(guildId, "MonDKP_DKPTable").forEach(item => {
       if (item.class.toLocaleLowerCase() == params[2].toLocaleLowerCase()) {
         items.unshift(item);
       }
@@ -221,7 +290,7 @@ export class Bot {
   private ShowUserDKP(params: string[], message: Message): void {
     const guildId = message.guild.id;
     const items = [];
-    this.dkp[guildId]["MonDKP_DKPTable"].forEach(item => {
+    this.GetDKPTable(guildId, "MonDKP_DKPTable").forEach(item => {
       if (item.player.toLocaleLowerCase() == params[1].toLocaleLowerCase()) {
         items.push(item);
       }
@@ -239,7 +308,7 @@ export class Bot {
     const guildId = message.guild.id;
     const searchItem = params[2];
     const items = [];
-    this.dkp[guildId]["MonDKP_DKPTable"].forEach(item => {
+    this.GetDKPTable(guildId, "MonDKP_DKPTable").forEach(item => {
       items.unshift(item);
     });
     message.channel.send(this.CreateDKPStatusEmbed(items, searchItem));
@@ -307,8 +376,18 @@ export class Bot {
               if (data) {
                 try {
                   const content = await this.parser.ParseData(data);
-                  this.dkp[guildId] = content;
-                  this.parser.SaveFile(data, guildId);
+                  const guildData = this.dkp[guildId] as GuildObjectBase;
+                  guildData.guildName = message.guild.name;
+                  guildData.dkptable = content;
+                  guildData.markModified("dkptable");
+                  await guildData.save({}, err => {
+                    if (err) {
+                      console.error(err);
+                    }
+                  });
+                  this.dkp[guildId] = guildData;
+                  // this.parser.SaveFile(data, guildId);
+
                   responseMsg.edit("Perfect, it's all up to date now");
                 } catch (error) {
                   responseMsg.edit(`Failed parsing file: ${error}`);
@@ -324,7 +403,7 @@ export class Bot {
     }
   }
 
-  private CreateLootEmbed = (items: any[]): MessageEmbed => {
+  private CreateLootEmbed(items: any[]): MessageEmbed {
     if (items.length <= 0) {
       return null;
     }
@@ -342,10 +421,6 @@ export class Bot {
     items.forEach(item => {
       const lootItem = item.loot.substring(item.loot.indexOf("["), item.loot.lastIndexOf("]") + 1);
 
-      // lootItem
-      const lootItemIdTemp = item.loot.substring(item.loot.indexOf("Hitem:") + 6);
-      const lootItemId = lootItemIdTemp.substring(0, lootItemIdTemp.indexOf(":"));
-
       const time = format(new Date(item.date * 1000), "dd.MM.yyyy");
       timeArray.unshift(time);
       itemArray.unshift(`${lootItem}`);
@@ -357,9 +432,9 @@ export class Bot {
     embed.addField("Date", timeArray, true);
 
     return embed;
-  };
+  }
 
-  private CreateSearchEmbed = (items: any[], search: string): MessageEmbed => {
+  private CreateSearchEmbed(items: any[], search: string): MessageEmbed {
     if (items.length <= 0) {
       return null;
     }
@@ -378,10 +453,6 @@ export class Bot {
 
     sortedItems.reverse().forEach(item => {
       const lootItem = item.loot.substring(item.loot.indexOf("["), item.loot.lastIndexOf("]") + 1);
-
-      // lootItem
-      const lootItemIdTemp = item.loot.substring(item.loot.indexOf("Hitem:") + 6);
-      const lootItemId = lootItemIdTemp.substring(0, lootItemIdTemp.indexOf(":"));
       const time = format(new Date(item.date * 1000), "dd.MM.yyyy");
 
       itemArray.unshift(`${lootItem}`);
@@ -392,13 +463,12 @@ export class Bot {
 
     embed.addField("Item", itemArray, true);
     embed.addField("Player", playerArray, true);
-    // embed.addField("Date", timeArray, true);
     embed.addField("Cost", costArray, true);
 
     return embed;
-  };
+  }
 
-  private CreateZoneEmbed = (items: any[], search: string, zone: string): MessageEmbed => {
+  private CreateZoneEmbed(items: any[], search: string, zone: string): MessageEmbed {
     if (items.length <= 0) {
       return null;
     }
@@ -416,8 +486,6 @@ export class Bot {
 
     items.forEach(item => {
       const lootItem = item.loot.substring(item.loot.indexOf("["), item.loot.lastIndexOf("]") + 1);
-      const lootItemIdTemp = item.loot.substring(item.loot.indexOf("Hitem:") + 6);
-      const lootItemId = lootItemIdTemp.substring(0, lootItemIdTemp.indexOf(":"));
       const cost = item.cost;
 
       itemArray.unshift(`${lootItem}`);
@@ -431,10 +499,10 @@ export class Bot {
     embed.setFooter("Links has been removed due to discord message size restrictions\n");
 
     return embed;
-  };
+  }
 
   lootObjects = [];
-  private CreateDKPStatusEmbed = (items: any, search: string): MessageEmbed => {
+  private CreateDKPStatusEmbed(items: any, search: string): MessageEmbed {
     const embed = new MessageEmbed();
 
     embed.setTitle(`Current DKP status for ${search}`).setColor("#ffffff");
@@ -459,7 +527,7 @@ export class Bot {
     embed.setTimestamp();
 
     return embed;
-  };
+  }
 
   private GetListeningText(): string {
     const textArray = [`${this.trigger} help`, `${this.client.guilds.cache.size} servers`];

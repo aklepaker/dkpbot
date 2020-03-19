@@ -28,6 +28,14 @@ export class Parser {
     }
   };
 
+  public FileExists(guildId: string): boolean {
+    const fileName = `${guildId}_dkp.lua`;
+    if (fs.existsSync(fileName)) {
+      return true;
+    }
+    return false;
+  }
+
   private LoadFileContent = async (guildId: string): Promise<object> => {
     const fileName = `${guildId}_dkp.lua`;
     const data = fs.readFileSync(fileName, { encoding: "utf8" });
@@ -75,7 +83,7 @@ export class Parser {
   private GetSegments = async (data: string): Promise<object> => {
     const regex = /^\w+/gm;
     const matches = data.match(regex);
-    const object = [];
+    const object = {};
 
     try {
       for (let i = 0; i < matches.length; i++) {

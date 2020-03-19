@@ -8,5 +8,5 @@ bot
     console.log("Initialize OK, listening for requests");
   })
   .catch(error => {
-    console.log("Error: ", error);
+    console.error("Exited: ", error.message);
   });

@@ -7,35 +7,24 @@ import { connect } from "mongoose";
 import { GuildObject, GuildObjectBase } from "./objects/BotGuild";
 import { Parser } from "./parser";
 import { version } from "./version";
+import { DMConfigSession, DMConfigSessionObject } from "./objects/DMConfigSession";
 
 export class Bot {
   private client: Client;
   private readonly token: string;
   private parser: Parser;
-  private dkp: GuildObjectBase[] = [] as GuildObjectBase[];
+  private dkp: GuildObjectBase[] = [];
   private trigger: string;
   private listeningIndex: number;
+  private dbConnectionString: string;
   constructor() {
     console.info(`DKPbot v${version}`);
-    const url = `mongodb://${process.env.MONGO_USERNAME}:${process.env.MONGO_PASSWORD}@${process.env.MONGO_HOSTNAME}:${process.env.MONGO_PORT}/${process.env.MONGO_DB}?authSource=admin`;
+    this.dbConnectionString = `mongodb://${process.env.MONGO_USERNAME}:${process.env.MONGO_PASSWORD}@${process.env.MONGO_HOSTNAME}:${process.env.MONGO_PORT}/${process.env.MONGO_DB}?authSource=admin`;
     this.client = new Client();
     this.token = process.env.TOKEN;
     this.parser = new Parser("dkp.lua");
     this.trigger = "!dkpb";
     this.listeningIndex = 0;
-
-    try {
-      connect(url, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-        autoIndex: true,
-        useCreateIndex: true
-      }).then(result => {
-        console.info("MongoDB Connected:", result.connection.readyState === 1 ? true : false);
-      });
-    } catch (error) {
-      console.error("Failed connecting", error);
-    }
   }
 
   private async Init(): Promise<void> {
@@ -63,33 +52,53 @@ export class Bot {
     });
   }
 
-  public listen(): Promise<string> {
-    this.client.on("ready", () => {
-      this.client.user.setActivity({ type: "LISTENING", name: `${this.trigger} help` });
-      this.client.setInterval(() => {
-        const text = this.GetListeningText();
-        this.client.user.setActivity({
-          type: "LISTENING",
-          name: text
-        });
-      }, 30000);
-      this.Init();
-    });
+  private async InitiateDatabase(): Promise<void> {
+    try {
+      const result = await connect(this.dbConnectionString, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+        autoIndex: true,
+        useCreateIndex: true
+      });
+      console.info("MongoDB Connected:", result.connection.readyState === 1 ? true : false);
+    } catch (error) {
+      throw error;
+    }
+  }
 
-    this.client.on("guildCreate", async (guild: Guild) => {
-      await this.OnGuildJoin(guild);
-    });
+  public async listen(): Promise<string> {
+    try {
+      await this.InitiateDatabase();
 
-    this.client.on("guildDelete", async (guild: Guild) => {
-      // this.parser.RemoveFile(guild.id);
-      await this.OnGuildLeave(guild);
-    });
+      this.client.on("ready", () => {
+        // this.client.user.setActivity({ type: "LISTENING", name: `${this.GetTriggerWord(guildId)} help` });
+        this.client.setInterval(() => {
+          const text = this.GetListeningText();
+          this.client.user.setActivity({
+            type: "LISTENING",
+            name: text
+          });
+        }, 30000);
+        this.Init();
+      });
 
-    this.client.on("message", async (message: Message) => {
-      this.ParseMessage(message);
-    });
+      this.client.on("guildCreate", async (guild: Guild) => {
+        await this.OnGuildJoin(guild);
+      });
 
-    return this.client.login(this.token);
+      this.client.on("guildDelete", async (guild: Guild) => {
+        // this.parser.RemoveFile(guild.id);
+        await this.OnGuildLeave(guild);
+      });
+
+      this.client.on("message", async (message: Message) => {
+        this.ParseMessage(message);
+      });
+
+      return this.client.login(this.token);
+    } catch (error) {
+      throw error;
+    }
   }
   private async OnGuildLeave(guild: Guild): Promise<void> {
     const dbGuild = await this.GetGuild(guild.id);
@@ -118,6 +127,20 @@ export class Bot {
     return guild;
   }
 
+  private async GetDMConfigSession(dmId: string, userId?: string, guildId?: string): Promise<DMConfigSession> {
+    let dmSession = null;
+
+    dmSession = await DMConfigSessionObject.findOne({ dmId }, async err => {
+      if (err) {
+        console.error(err);
+      }
+    });
+    if (dmSession === null) {
+      dmSession = await new DMConfigSessionObject({ dmId, userId, guildId });
+    }
+    return dmSession;
+  }
+
   private GetDKPTable(guildId: string, table: string): Record<string, any> {
     try {
       if (this.dkp[guildId].dkptable[table]) {
@@ -131,63 +154,187 @@ export class Bot {
   }
 
   private async ParseMessage(message: Message): Promise<void> {
-    if (message.content.startsWith(this.trigger)) {
-      const params = message.content.split(" ");
+    /*
+    Don't reply to our own messages
+    */
+    if (message.author.bot || message.author.id === this.client.user.id) {
+      return;
+    }
+
+    const params = message.content.split(" ");
+
+    /*
+    Check if the message starts with a trigger, and are executed from a channel
+    */
+    if (message.channel.type === "text") {
       const guildId = message.guild.id;
 
-      if (this.dkp[guildId] === undefined && params[1] !== "update" && params[1] !== "help") {
-        message.channel.send(
-          `I don't have a DKP table yet. Use '${this.trigger} update' to upload a Monolith DKP lua file.`
-        );
-        return;
-      }
+      if (message.content.startsWith(this.GetTriggerWord(guildId))) {
+        if (this.dkp[guildId] === undefined && params[1] !== "update" && params[1] !== "help") {
+          message.channel.send(
+            `I don't have a DKP table yet. Use '${this.GetTriggerWord(
+              guildId
+            )} update' to upload a Monolith DKP lua file.`
+          );
+          return;
+        }
 
-      if (params.length >= 3) {
-        switch (params[1]) {
-          case "search":
-            {
-              this.ShowSearch(params, message);
-            }
-            break;
-          case "loot":
-            {
-              this.ShowLootByPlayer(params, message);
-            }
-            break;
+        /*
+        Handle multi-parameter requests
+        */
+        if (params.length >= 3) {
+          switch (params[1]) {
+            case "search":
+              {
+                this.ShowSearch(params, message);
+              }
+              break;
+            case "loot":
+              {
+                this.ShowLootByPlayer(params, message);
+              }
+              break;
 
-          case "date":
-            {
-              this.ShowLootByDate(params, message);
+            case "date":
+              {
+                this.ShowLootByDate(params, message);
+              }
+              break;
+            case "class": {
+              this.ShowClassDKP(params, message);
             }
-            break;
-          case "class": {
-            this.ShowClassDKP(params, message);
+          }
+        } else {
+          switch (params[1]) {
+            case "all":
+              {
+                this.ShowAllUsersDKP(params, message);
+              }
+              break;
+
+            case "update":
+              {
+                await this.UpdateDKPData(message);
+              }
+              break;
+
+            case "help":
+              {
+                await this.ShowDKPHelp(message);
+              }
+              break;
+
+            /*
+              Start a configuration DM, allowing for setting config parameters
+              without doing it in the open.
+  
+              Create a variable storing the current sessions guild id. Maybe
+              do it in db, or just in memory.
+              Add a timestamp, so we can timeout the session.
+  
+              If timed out, we should tell user to do a new initiation from guild channel
+  
+            */
+            case "config":
+              {
+                const guildName = message.guild.name;
+                const guildId = message.guild.id;
+                const dm = await message.author.createDM();
+                const dmSession = await this.GetDMConfigSession(dm.id, message.author.id, guildId);
+                dmSession.guildId = guildId;
+                await dmSession.save();
+                dm.send(`Configuration for \`${guildName}\``);
+                // dm.
+                // await this.ShowDKPHelp(message);
+              }
+              break;
+            default: {
+              this.ShowUserDKP(params, message);
+            }
           }
         }
-      } else {
-        switch (params[1]) {
-          case "all":
+      }
+    } else {
+      /*
+      Private messages
+      */
+
+      if (message.channel.type === "dm") {
+        const dmSession = await this.GetDMConfigSession(message.channel.id);
+        if (!dmSession.guildId) {
+          message.channel.send(
+            "Sorry, I don't talk to strangers.\nStart a conversation with me from your server. Use `help` in your server for more info."
+          );
+          return;
+        }
+
+        const guildName = this.client.guilds.cache.find(guild => guild.id === dmSession.guildId).name;
+        console.log(dmSession.guildId, guildName);
+        console.log(message.channel.id);
+
+        switch (params[0]) {
+          case "!show":
             {
-              this.ShowAllUsersDKP(params, message);
+              message.channel.send(`Showing configuration for \`${guildName}\``);
+            }
+
+            break;
+          case "!help":
+            {
+              await message.author.dmChannel?.send("Help!.");
             }
             break;
 
-          case "update":
+          case "!set":
             {
-              await this.UpdateDKPData(message);
+              const key = params[1];
+              const newValue = params[2];
+
+              const guildObject = this.dkp[dmSession.guildId] as GuildObjectBase;
+
+              let oldValue = undefined;
+              if (guildObject.config[key] !== undefined) {
+                oldValue = guildObject.config[key];
+
+                if (oldValue === newValue) {
+                  await message.author.dmChannel?.send(
+                    `Not updating \`${key}\` on server \`${guildName}\`, the value has not changed.`
+                  );
+                  return;
+                }
+                guildObject.config[key] = newValue;
+              }
+
+              await guildObject.save(err => {
+                if (err === null) {
+                  this.dkp[dmSession.guildId] = guildObject;
+                } else {
+                  console.error(err);
+                }
+              });
+
+              await message.author.dmChannel?.send(
+                `Updated \`${key}\` from \`${oldValue}\` to \`${newValue}\` on server \`${guildName}\``
+              );
             }
             break;
 
-          case "help":
+          case "!close":
             {
-              await this.ShowDKPHelp(message);
+              if (message.channel.type === "dm") {
+                const dmSession = await this.GetDMConfigSession(message.channel.id);
+                dmSession.remove();
+                await message.channel.delete();
+              }
             }
             break;
-          default: {
-            this.ShowUserDKP(params, message);
-          }
+          default:
+            await message.author.dmChannel?.send(
+              "Uhm, I don't know that command. Try using `!help` for more information"
+            );
         }
       }
+      // await message.author.send();
     }
   }
 
@@ -249,7 +396,7 @@ export class Bot {
     }
 
     if (zone.length === 0) {
-      message.channel.send(`Missing raid name. ${this.trigger} ${searchDate} molten`);
+      message.channel.send(`Missing raid name. ${this.GetTriggerWord(guildId)} ${searchDate} molten`);
       return;
     }
 
@@ -315,6 +462,7 @@ export class Bot {
   }
 
   private ShowDKPHelp(message: Message): void {
+    const guildId = message.guild?.id;
     const embed = new MessageEmbed();
 
     const serversJoined = this.client.guilds.cache.size;
@@ -329,22 +477,26 @@ export class Bot {
       "https://icon-library.net/images/discord-transparent-server-icon/discord-transparent-server-icon-16.jpg"
     );
     embed.setDescription(`Check your DKP status, or check out who got that shiny item in the last raid.`);
-    embed.addField("Show all commands", `${this.trigger} help`);
-    embed.addField("Search all loots for the given item", `${this.trigger} search <item>`);
+    embed.addField("Show all commands", `${this.GetTriggerWord(guildId)} help`);
+    embed.addField("Search all loots for the given item", `${this.GetTriggerWord(guildId)} search <item>`);
     embed.addField(
       "Show current DKP status for a user",
-      `${this.trigger} <user> | all\n\`\`\`${this.trigger} Graa\n${this.trigger} all\`\`\``
+      `${this.GetTriggerWord(guildId)} <user> | all\n\`\`\`${this.GetTriggerWord(guildId)} Graa\n${this.GetTriggerWord(
+        guildId
+      )} all\`\`\``
     );
-    embed.addField("Show all items a user have looted", `${this.trigger} loot <user>`);
+    embed.addField("Show all items a user have looted", `${this.GetTriggerWord(guildId)} loot <user>`);
     embed.addField(
       "Show all items on a date from an instance",
-      `${this.trigger} date <dd.mm.yyyy> <instance>\n\`\`\`${this.trigger} date 16.03.2020 molten\`\`\``
+      `${this.GetTriggerWord(guildId)} date <dd.mm.yyyy> <instance>\n\`\`\`${this.GetTriggerWord(
+        guildId
+      )} date 16.03.2020 molten\`\`\``
     );
     embed.addField(
       "Show DKP status for a given class",
-      `${this.trigger} class <class>\n\`\`\`${this.trigger} class priest\`\`\``
+      `${this.GetTriggerWord(guildId)} class <class>\n\`\`\`${this.GetTriggerWord(guildId)} class priest\`\`\``
     );
-    embed.addField("Update the DKP table from a new Monolith DKP file", `${this.trigger} update`);
+    embed.addField("Update the DKP table from a new Monolith DKP file", `${this.GetTriggerWord(guildId)} update`);
     embed.setFooter(`v${version} - Currently serving ${serversJoined} servers`);
     embed.setTimestamp();
 
@@ -530,8 +682,18 @@ export class Bot {
   }
 
   private GetListeningText(): string {
-    const textArray = [`${this.trigger} help`, `${this.client.guilds.cache.size} servers`];
+    const textArray = [
+      //`${this.GetTriggerWord(guildId)} help`
+      `${this.client.guilds.cache.size} servers`
+    ];
     this.listeningIndex = this.listeningIndex + 1 < textArray.length ? this.listeningIndex + 1 : 0;
     return textArray[this.listeningIndex];
+  }
+
+  private GetTriggerWord(guildId: string): string {
+    if (guildId) {
+      return this.dkp[guildId].config["trigger"];
+    }
+    return this.trigger;
   }
 }

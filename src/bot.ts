@@ -4,7 +4,7 @@ import { Client, Guild, Message, MessageEmbed } from "discord.js";
 import * as https from "https";
 import { sortBy } from "lodash";
 import { connect } from "mongoose";
-import { GuildObject, GuildObjectBase } from "./objects/botGuild";
+import { GuildObject, GuildObjectBase } from "./objects/BotGuild";
 import { Parser } from "./parser";
 import { version } from "./version";
 

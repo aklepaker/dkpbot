@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-empty-interface */
-import { Schema, Document, Model, model } from "mongoose";
+import { Document, model, Schema } from "mongoose";
 
 const GuildSchema = new Schema(
   {
@@ -19,7 +19,7 @@ const GuildSchema = new Schema(
   { typePojoToMixed: false }
 );
 
-interface GuildConfig {
+export interface GuildConfig {
   trigger: string;
 }
 

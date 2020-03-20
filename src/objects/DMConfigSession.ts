@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-empty-interface */
-import { Schema, Document, Model, model } from "mongoose";
+import { Document, model, Schema } from "mongoose";
 
 /*
     Schema for Direct Message Config storing USER-ID and GuildID togheter with

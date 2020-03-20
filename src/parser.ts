@@ -1,13 +1,8 @@
 import * as fs from "fs";
 
 export class Parser {
-  private fileToParse: string;
-  private fileToSave: string;
-  private preparsedFile: string;
-  constructor(file: string) {
-    this.fileToParse = file;
-    this.fileToSave = file;
-    this.preparsedFile = file;
+  constructor() {
+    //
   }
 
   public Parse = async (guildId: string): Promise<object> => {

@@ -3,7 +3,7 @@ import { Client, Guild, Message, Presence, ActivityOptions, ActivityType } from 
 import { connect } from "mongoose";
 import { MessageHandler } from "./MessageHandler";
 import { GuildObject, GuildObjectBase } from "../objects/GuildObject";
-import { Parser } from "../parser";
+import { Parser } from "./Parser";
 import { version } from "../version";
 
 export class Bot {

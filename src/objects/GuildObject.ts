@@ -21,6 +21,7 @@ const GuildSchema = new Schema(
 
 export interface GuildConfig {
   trigger: string;
+  roleName: string;
 }
 
 interface GuildSchema extends Document {

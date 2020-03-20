@@ -2,7 +2,7 @@ import { Message, MessageEmbed } from "discord.js";
 import { BotGuild } from "./BotGuild";
 import { parse, getUnixTime, addSeconds, addDays } from "date-fns";
 import { version } from "../version";
-import { Parser } from "../parser";
+import { Parser } from "./Parser";
 import * as https from "https";
 import { MessageContent } from "./MessageContent";
 
@@ -176,20 +176,20 @@ export class ChannelReply {
     embed.addField(
       "Show current DKP status for a user",
       `${this.botGuild.GetConfig().trigger} <user> | all\n\`\`\`${this.botGuild.GetConfig().trigger} Graa\n${
-        this.botGuild.GetConfig().trigger
+      this.botGuild.GetConfig().trigger
       } all\`\`\``
     );
     embed.addField("Show all items a user have looted", `${this.botGuild.GetConfig().trigger} loot <user>`);
     embed.addField(
       "Show all items on a date from an instance",
       `${this.botGuild.GetConfig().trigger} date <dd.mm.yyyy> <instance>\n\`\`\`${
-        this.botGuild.GetConfig().trigger
+      this.botGuild.GetConfig().trigger
       } date 16.03.2020 molten\`\`\``
     );
     embed.addField(
       "Show DKP status for a given class",
       `${this.botGuild.GetConfig().trigger} class <class>\n\`\`\`${
-        this.botGuild.GetConfig().trigger
+      this.botGuild.GetConfig().trigger
       } class priest\`\`\``
     );
     embed.addField("Update the DKP table from a new Monolith DKP file", `${this.botGuild.GetConfig().trigger} update`);
@@ -219,7 +219,7 @@ export class ChannelReply {
           responseMsg.edit("Parsing the file");
           let data = "";
           response
-            .on("data", function(buffer) {
+            .on("data", function (buffer) {
               data += buffer;
             })
             .on("end", async () => {

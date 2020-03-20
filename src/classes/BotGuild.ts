@@ -4,9 +4,15 @@ export class BotGuild {
   private guildId: string;
   private guildName: string;
   private guildObject: GuildObjectBase;
+  public defaultConfig: GuildConfig;
   public config: GuildConfig;
 
   constructor() {
+    this.defaultConfig = {
+      trigger: "!dkpb",
+      roleName: "DkpBotAdmin"
+    }
+    this.config = this.defaultConfig;
     this.GetGuild();
   }
 
@@ -22,14 +28,46 @@ export class BotGuild {
   */
   public SetName(value: string): void {
     this.guildObject.guildName = value;
+    this.Save();
   }
 
   /** 
     Set the name of the guild
   */
   public SetConfig(key: string, value: string): void {
-    this.guildObject.config[key] = value;
+    if (value === "") {
+      value = undefined;
+    }
+
+    Object.keys(this.defaultConfig).forEach(keyName => {
+      if (keyName.toLocaleLowerCase() === key.toLocaleLowerCase()) {
+        this.guildObject.config[keyName] = value;
+      }
+    });
     this.guildObject.markModified("config");
+    this.Save();
+  }
+
+  public GetConfigName(key: string): string {
+    let properKeyName = key;
+    console.log(Object.keys(this.defaultConfig));
+    Object.keys(this.defaultConfig).forEach(keyName => {
+      if (keyName.toLocaleLowerCase() === key.toLocaleLowerCase()) {
+        properKeyName = keyName;
+      }
+    });
+    return properKeyName;
+  }
+
+  /**
+    Return the config value for the given key
+  */
+  public GetConfigValue(key: string): any {
+    return this.guildObject.config[key] !== undefined ? this.guildObject.config[key] : null;
+  }
+
+  public GetAdminRole(): string {
+    return this.guildObject.config.roleName ? this.guildObject.config.roleName : this.defaultConfig.roleName;
   }
 
   /**
@@ -79,8 +117,8 @@ export class BotGuild {
   /**
     Save the guild to database
   */
-  public async Save(): Promise<void> {
-    await this.guildObject.save();
+  public async Save(callback?: () => void): Promise<void> {
+    this.guildObject = await this.guildObject.save(callback);
   }
 
   /**

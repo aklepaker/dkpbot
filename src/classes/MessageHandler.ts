@@ -13,6 +13,7 @@ export class MessageHandler {
   private message: Message;
   private botGuild: BotGuild;
   private client: Client;
+  private dmSession: DMConfigSession;
 
   constructor(message: Message, client: Client) {
     this.client = client;
@@ -116,13 +117,16 @@ export class MessageHandler {
           */
         case "config":
           {
-            const guildName = this.message.guild.name;
-            const guildId = this.message.guild.id;
-            const dm = await this.message.author.createDM();
-            const dmSession = await this.GetDMConfigSession(dm.id, this.message.author.id, guildId);
-            dmSession.guildId = guildId;
-            await dmSession.save();
-            dm.send(`Configuration for \`${guildName}\``);
+            if (this.IsAdmin()) {
+              const guildName = this.message.guild.name;
+              const guildId = this.message.guild.id;
+              const dm = await this.message.author.createDM();
+              const dmSession = await this.GetDMConfigSession(dm.id, this.message.author.id, guildId);
+              dmSession.guildId = guildId;
+              await dmSession.save();
+              this.message.author.username
+              dm.send(`Hi ${this.message.author.username}, i'm ready to change my configuration in the \`${guildName}\` server as you requested.\nUse \`!help\` to get a list of commands`);
+            }
           }
           break;
 
@@ -136,10 +140,9 @@ export class MessageHandler {
     Private this.messages
     */
     if (this.IsDirectMessage()) {
-      const dmSession = await this.GetDMConfigSession(this.message.channel.id);
-      await this.botGuild.LoadFromId(dmSession.guildId);
-      const guild = this.client.guilds.cache.get(dmSession.guildId);
-      this.botGuild.SetName(guild.name);
+      this.dmSession = await this.GetDMConfigSession(this.message.channel.id);
+      await this.botGuild.LoadFromId(this.dmSession.guildId);
+      // const guild = this.client.guilds.cache.get(this.dmSession.guildId);
 
       /*
       Don't reply to our own this.messages
@@ -148,42 +151,42 @@ export class MessageHandler {
         return;
       }
 
-      const reply = new DirectMessageReply(this.message, dmSession, this.botGuild);
+      const reply = new DirectMessageReply(this.message, this.dmSession, this.botGuild);
 
-      if (!dmSession.guildId) {
-        reply.ShowInitiateConfig();
+      if (!this.dmSession.guildId || !this.IsAdmin()) {
+        reply.ShowNoConfigInitiated();
         return;
       }
 
       switch (this.action) {
         case "!show":
           {
-            reply.ShowConfig();
+            await reply.ShowConfig();
           }
 
           break;
         case "!help":
           {
-            reply.ShowHelp();
+            await reply.ShowHelp();
           }
           break;
 
         case "!set":
           {
-            reply.ShowSetConfig();
+            await reply.ShowSetConfig();
           }
           break;
 
         case "!close":
           {
-            reply.ShowClose();
+            await reply.ShowClose();
           }
           break;
         default:
-          reply.ShowDefault();
+          await reply.ShowDefault();
       }
 
-      this.botGuild.Save();
+      // await this.botGuild.Save();
     }
   }
 
@@ -207,6 +210,24 @@ export class MessageHandler {
 
   private IsDirectMessage(): boolean {
     return this.messageType === "dm";
+  }
+
+  private IsAdmin(): boolean {
+
+    let isAdmin = false;
+    if (this.message.member === null) {
+      const guild = this.client.guilds.cache.find(g => g.id === this.dmSession.guildId);
+      const adminRole = guild.roles.cache.find(r => r.name === this.botGuild.GetAdminRole());
+      if (!adminRole) {
+        return false;
+      }
+      isAdmin = adminRole.members.some(m => m.user.id === this.message.author.id)
+
+    } else {
+      isAdmin = this.message.member.roles.cache.some(r => r.name === this.botGuild.GetAdminRole());
+    }
+
+    return isAdmin
   }
 
   private ShouldMessageBeParsed(): boolean {

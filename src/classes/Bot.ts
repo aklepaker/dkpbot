@@ -5,6 +5,7 @@ import { MessageHandler } from "./MessageHandler";
 import { GuildObject, GuildObjectBase } from "../objects/GuildObject";
 import { Parser } from "./Parser";
 import { version } from "../version";
+import { Metrics } from "./Metrics";
 
 export class Bot {
   private client: Client;
@@ -14,6 +15,8 @@ export class Bot {
   private trigger: string;
   private listeningIndex: number;
   private dbConnectionString: string;
+  private metrics: Metrics;
+
   constructor() {
     console.info(`DKPbot v${version}`);
     this.dbConnectionString = `mongodb://${process.env.MONGO_USERNAME}:${process.env.MONGO_PASSWORD}@${process.env.MONGO_HOSTNAME}:${process.env.MONGO_PORT}/${process.env.MONGO_DB}?authSource=admin`;
@@ -22,6 +25,8 @@ export class Bot {
     this.parser = new Parser();
     this.trigger = "!dkpb";
     this.listeningIndex = 0;
+    this.metrics = new Metrics();
+
   }
 
   /**
@@ -75,6 +80,7 @@ export class Bot {
   public async listen(): Promise<string> {
     try {
       await this.InitiateDatabase();
+      await this.metrics.Init();
 
       this.client.on("ready", () => {
         this.client.user.setActivity();
@@ -85,11 +91,13 @@ export class Bot {
       });
 
       this.client.on("guildCreate", async (guild: Guild) => {
+        this.metrics.GuildGauge.set(this.client.guilds.cache.size);
         await this.OnGuildJoin(guild);
+
       });
 
       this.client.on("guildDelete", async (guild: Guild) => {
-        // this.parser.RemoveFile(guild.id);
+        this.metrics.GuildGauge.set(this.client.guilds.cache.size);
         await this.OnGuildLeave(guild);
       });
 

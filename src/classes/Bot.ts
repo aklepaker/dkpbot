@@ -83,6 +83,7 @@ export class Bot {
       await this.metrics.Init();
 
       this.client.on("ready", () => {
+        this.metrics.GuildGauge.set(this.client.guilds.cache.size);
         this.client.user.setActivity();
         this.client.setInterval(() => {
           this.client.user.setActivity(this.GetListeningActivity());

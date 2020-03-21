@@ -3,6 +3,7 @@ import * as Prometheus from 'prom-client';
 
 export class Metrics {
     private port: any;
+    private ip: string;
 
 
     constructor() {
@@ -13,6 +14,7 @@ export class Metrics {
         collectDefaultMetrics();
 
         this.port = process.env.METRIC_PORT || 3300;
+        this.ip = process.env.METRIC_IP || "127.0.0.1";
         const server = http.createServer((req, res) => {
             if (req.url === '/metrics') {
                 const register = Prometheus.register;
@@ -25,22 +27,22 @@ export class Metrics {
             res.statusMessage = 'Not found';
             res.end();
         })
-        server.listen(this.port, process.env.METRIC_IP)
-        console.info(`Prometheus listening on ${this.port}/metrics`);
+        server.listen(this.port, this.ip)
+        console.info(`Prometheus listening on ${this.ip}:${this.port}/metrics`);
     }
     public GuildGauge = new Prometheus.Gauge({
-        name: 'guild_gauge',
+        name: 'dkpbot_guild_gauge',
         help: 'Number of servers the bot has joined',
     });
 
     public MessagesSentCounter = new Prometheus.Counter({
-        name: 'messages_sent',
+        name: 'dkpbot_messages_sent',
         help: 'Messages the bot has sent',
         labelNames: ['server'],
     });
 
     public MessagesReceivedCounter = new Prometheus.Counter({
-        name: 'messages_received',
+        name: 'dkpbot_messages_received',
         help: 'Messages the bot has received',
         labelNames: ['server'],
     });

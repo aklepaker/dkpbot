@@ -2,7 +2,7 @@ import * as http from 'http';
 import * as Prometheus from 'prom-client';
 
 export class Metrics {
-    private port: number;
+    private port: any;
 
 
     constructor() {
@@ -12,8 +12,8 @@ export class Metrics {
         const collectDefaultMetrics = Prometheus.collectDefaultMetrics;
         collectDefaultMetrics();
 
-        this.port = 3300;
-        http.createServer((req, res) => {
+        this.port = process.env.METRIC_PORT || 3300;
+        const server = http.createServer((req, res) => {
             if (req.url === '/metrics') {
                 const register = Prometheus.register;
                 res.setHeader('Connection', 'close');
@@ -24,7 +24,7 @@ export class Metrics {
             res.statusCode = 404;
             res.statusMessage = 'Not found';
             res.end();
-        }).listen(this.port);
+        }).listen(this.port, process.env.METRIC_PORT);
         console.info(`Prometheus listening on ${this.port}/metrics`);
     }
     public GuildGauge = new Prometheus.Gauge({

@@ -3,6 +3,7 @@ import { BotGuild } from "./BotGuild";
 import { DMConfigSessionObject, DMConfigSession } from "../objects/DMConfigSession";
 import { ChannelReply } from "./ChannelReply";
 import { DirectMessageReply } from "./DirectMessageReply";
+import { Metrics } from "./Metrics";
 
 export class MessageHandler {
   private triggerWord: string;
@@ -14,6 +15,7 @@ export class MessageHandler {
   private botGuild: BotGuild;
   private client: Client;
   private dmSession: DMConfigSession;
+  private metrics: Metrics;
 
   constructor(message: Message, client: Client) {
     this.client = client;
@@ -21,6 +23,8 @@ export class MessageHandler {
     this.messageType = message.channel.type;
     this.botGuild = new BotGuild();
     this.ParseParams(message);
+    this.metrics = new Metrics();
+
   }
 
   private async ParseParams(message: Message): Promise<void> {
@@ -63,6 +67,8 @@ export class MessageHandler {
       if (!this.ShouldMessageBeParsed()) {
         return;
       }
+
+      this.metrics.MessagesReceivedCounter.inc(1);
 
       switch (this.action) {
         case "search":
@@ -140,6 +146,7 @@ export class MessageHandler {
     Private this.messages
     */
     if (this.IsDirectMessage()) {
+      this.metrics.MessagesReceivedCounter.inc(1);
       this.dmSession = await this.GetDMConfigSession(this.message.channel.id);
       await this.botGuild.LoadFromId(this.dmSession.guildId);
       // const guild = this.client.guilds.cache.get(this.dmSession.guildId);

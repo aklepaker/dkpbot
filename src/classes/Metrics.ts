@@ -24,7 +24,8 @@ export class Metrics {
             res.statusCode = 404;
             res.statusMessage = 'Not found';
             res.end();
-        }).listen(this.port, process.env.METRIC_PORT);
+        })
+        server.listen(this.port, process.env.METRIC_IP)
         console.info(`Prometheus listening on ${this.port}/metrics`);
     }
     public GuildGauge = new Prometheus.Gauge({

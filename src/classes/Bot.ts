@@ -153,7 +153,7 @@ export class Bot {
     Event triggere on a new message from DM or channel
   */
   public async OnMessage(message: Message): Promise<void> {
-    const handler = new MessageHandler(message, this.client);
+    const handler = new MessageHandler(message, this.client, this.metrics);
     await handler.ParseMessage();
     return;
   }

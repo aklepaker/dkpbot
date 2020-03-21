@@ -17,13 +17,13 @@ export class MessageHandler {
   private dmSession: DMConfigSession;
   private metrics: Metrics;
 
-  constructor(message: Message, client: Client) {
+  constructor(message: Message, client: Client, metrics: Metrics) {
     this.client = client;
     this.message = message;
     this.messageType = message.channel.type;
     this.botGuild = new BotGuild();
     this.ParseParams(message);
-    this.metrics = new Metrics();
+    this.metrics = metrics;
 
   }
 

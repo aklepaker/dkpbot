@@ -1,8 +1,10 @@
 import { Client, Message } from "discord.js";
+import { performance } from 'perf_hooks';
 import { DMConfigSession, DMConfigSessionObject } from "../objects/DMConfigSession";
 import { BotGuild } from "./BotGuild";
 import { MessageReply } from "./MessageReply";
 import { Metrics } from "./Metrics";
+
 
 export class MessageHandler {
   private triggerWord: string;
@@ -54,6 +56,9 @@ export class MessageHandler {
 
   public async ParseMessage(): Promise<void> {
 
+
+    // this.ParseMessage(message);
+    const pStart = performance.now();
 
     // skip messages from myself
     if (this.message.author.bot || this.message.author.id === this.message.client.user.id) {
@@ -212,6 +217,8 @@ export class MessageHandler {
         reply.ShowUserDKP()
       }
     }
+    const pResult = performance.now() - pStart;
+    this.metrics.MessageProcessTime.inc(pResult);
   }
 
   private async GetDMConfigSession(dmId: string, userId?: string, guildId?: string): Promise<DMConfigSession> {

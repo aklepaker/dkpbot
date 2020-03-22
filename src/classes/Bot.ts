@@ -1,12 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Client, Guild, Message, Presence, ActivityOptions, ActivityType } from "discord.js";
+import { ActivityOptions, Client, Guild, Message } from "discord.js";
 import { connect } from "mongoose";
-import { MessageHandler } from "./MessageHandler";
 import { GuildObject, GuildObjectBase } from "../objects/GuildObject";
-import { Parser } from "./Parser";
 import { version } from "../version";
+import { MessageHandler } from "./MessageHandler";
 import { Metrics } from "./Metrics";
-import { performance } from 'perf_hooks';
+import { Parser } from "./Parser";
 
 export class Bot {
   private client: Client;
@@ -104,16 +103,7 @@ export class Bot {
       });
 
       this.client.on("message", async (message: Message) => {
-        // this.ParseMessage(message);
-        let pStart = 0;
-        try {
-          pStart = performance.now();
-        } catch (error) {
-          console.error(error.message);
-        }
         await this.OnMessage(message);
-        const pResult = performance.now() - pStart;
-        this.metrics.MessageProcessTime.inc(pResult);
       });
 
       return this.client.login(this.token);

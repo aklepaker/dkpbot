@@ -50,9 +50,8 @@ export class BotGuild {
 
   public GetConfigName(key: string): string {
     let properKeyName = key;
-    console.log(Object.keys(this.defaultConfig));
     Object.keys(this.defaultConfig).forEach(keyName => {
-      if (keyName.toLocaleLowerCase() === key.toLocaleLowerCase()) {
+      if (keyName.toLocaleLowerCase() === key?.toLocaleLowerCase()) {
         properKeyName = keyName;
       }
     });

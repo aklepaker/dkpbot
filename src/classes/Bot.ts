@@ -6,6 +6,7 @@ import { GuildObject, GuildObjectBase } from "../objects/GuildObject";
 import { Parser } from "./Parser";
 import { version } from "../version";
 import { Metrics } from "./Metrics";
+import { performance } from 'perf_hooks';
 
 export class Bot {
   private client: Client;
@@ -104,7 +105,15 @@ export class Bot {
 
       this.client.on("message", async (message: Message) => {
         // this.ParseMessage(message);
+        let pStart = 0;
+        try {
+          pStart = performance.now();
+        } catch (error) {
+          console.error(error.message);
+        }
         await this.OnMessage(message);
+        const pResult = performance.now() - pStart;
+        this.metrics.MessageProcessTime.inc(pResult);
       });
 
       return this.client.login(this.token);

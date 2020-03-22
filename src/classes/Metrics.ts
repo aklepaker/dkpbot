@@ -47,4 +47,10 @@ export class Metrics {
         labelNames: ['server'],
     });
 
+    public MessageProcessTime = new Prometheus.Gauge({
+        name: 'dkpbot_messages_processtime',
+        help: 'Time the bot use to process the message',
+        labelNames: ['server'],
+    });
+
 }

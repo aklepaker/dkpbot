@@ -1,8 +1,7 @@
-import { Message, Client, MessageType } from "discord.js";
+import { Client, Message } from "discord.js";
+import { DMConfigSession, DMConfigSessionObject } from "../objects/DMConfigSession";
 import { BotGuild } from "./BotGuild";
-import { DMConfigSessionObject, DMConfigSession } from "../objects/DMConfigSession";
-import { ChannelReply } from "./ChannelReply";
-import { DirectMessageReply } from "./DirectMessageReply";
+import { MessageReply } from "./MessageReply";
 import { Metrics } from "./Metrics";
 
 export class MessageHandler {
@@ -33,8 +32,8 @@ export class MessageHandler {
 
     switch (this.messageType) {
       case "dm":
-        this.action = params[0];
-        this.parameter = params.slice(1).join(" ");
+        this.action = params[1];
+        this.parameter = params.slice(2).join(" ");
         break;
 
       case "text":
@@ -54,146 +53,164 @@ export class MessageHandler {
   }
 
   public async ParseMessage(): Promise<void> {
-    /*
-    Check if the this.message starts with a trigger, and are executed from a channel
-    */
-    if (this.IsMessageFromGuild()) {
-      await this.botGuild.LoadFromId(this.message.guild.id);
-      const reply = new ChannelReply(this.message, this.botGuild);
 
-      /*
-      Don't reply to our own this.messages
-      */
-      if (!this.ShouldMessageBeParsed()) {
-        return;
-      }
 
-      this.metrics.MessagesReceivedCounter.inc(1);
-
-      switch (this.action) {
-        case "search":
-          {
-            reply.ShowSearch();
-          }
-          break;
-        case "loot":
-          {
-            reply.ShowLootByPlayer();
-          }
-          break;
-
-        case "date":
-          {
-            reply.ShowLootByDate();
-          }
-          break;
-        case "class":
-          {
-            reply.ShowClassDKP();
-          }
-          break;
-        case "all":
-          {
-            reply.ShowAllUsersDKP();
-          }
-          break;
-
-        case "update":
-          {
-            await reply.UpdateDKPData();
-          }
-          break;
-
-        case "help":
-          {
-            await reply.ShowDKPHelp();
-          }
-          break;
-
-        /*
-            Start a configuration DM, allowing for setting config parameters
-            without doing it in the guild.
-
-            Create a variable storing the current sessions guild id. Maybe
-            do it in db, or just in memory.
-            Add a timestamp, so we can timeout the session.
-
-            If timed out, we should tell user to do a new initiation from guild channel
-
-          */
-        case "config":
-          {
-            if (this.IsAdmin()) {
-              const guildName = this.message.guild.name;
-              const guildId = this.message.guild.id;
-              const dm = await this.message.author.createDM();
-              const dmSession = await this.GetDMConfigSession(dm.id, this.message.author.id, guildId);
-              dmSession.guildId = guildId;
-              await dmSession.save();
-              this.message.author.username
-              dm.send(`Hi ${this.message.author.username}, i'm ready to change my configuration in the \`${guildName}\` server as you requested.\nUse \`!help\` to get a list of commands`);
-            }
-          }
-          break;
-
-        default: {
-          reply.ShowUserDKP();
-        }
-      }
+    // skip messages from myself
+    if (this.message.author.bot || this.message.author.id === this.message.client.user.id) {
+      return;
     }
 
     /*
-    Private this.messages
+    Check if the this.message starts with a trigger, and are executed from a channel
     */
+    let reply: MessageReply = null;
+
+    if (this.IsMessageFromGuild()) {
+      await this.botGuild.LoadFromId(this.message.guild.id);
+      reply = new MessageReply(this.message, null, this.botGuild);
+    }
+
     if (this.IsDirectMessage()) {
       this.metrics.MessagesReceivedCounter.inc(1);
       this.dmSession = await this.GetDMConfigSession(this.message.channel.id);
       await this.botGuild.LoadFromId(this.dmSession.guildId);
-      // const guild = this.client.guilds.cache.get(this.dmSession.guildId);
+      reply = new MessageReply(this.message, this.dmSession, this.botGuild);
 
-      /*
-      Don't reply to our own this.messages
-      */
-      if (!this.ShouldMessageBeParsed()) {
+      if (this.dmSession === null) {
         return;
       }
+    }
 
-      const reply = new DirectMessageReply(this.message, this.dmSession, this.botGuild);
+    if (!this.ShouldMessageBeParsed()) {
+      return;
+    }
 
-      if (!this.dmSession.guildId || !this.IsAdmin()) {
-        reply.ShowNoConfigInitiated();
-        return;
-      }
+    // if (this.IsDirectMessage() && (!this.dmSession?.guildId || !this.IsAdmin())) {
+    //   reply.ShowNoConfigInitiated();
+    //   return;
+    // }
+    /*
+    Don't reply to our own this.messages
+    */
 
-      switch (this.action) {
-        case "!show":
-          {
+    this.metrics.MessagesReceivedCounter.inc(1);
+
+    switch (this.action) {
+      case "search":
+        {
+          reply.ShowSearch();
+        }
+        break;
+      case "loot":
+        {
+          reply.ShowLootByPlayer();
+        }
+        break;
+
+      case "date":
+        {
+          reply.ShowLootByDate();
+        }
+        break;
+      case "class":
+        {
+          reply.ShowClassDKP();
+        }
+        break;
+      case "all":
+        {
+          reply.ShowAllUsersDKP();
+        }
+        break;
+
+      case "update":
+        {
+          await reply.UpdateDKPData();
+        }
+        break;
+
+      case "help":
+        {
+          await reply.ShowDKPHelp(this.IsAdmin(), this.IsDirectMessage());
+        }
+        break;
+
+      case "show":
+        {
+          if (this.IsAdmin()) {
             await reply.ShowConfig();
           }
+        }
 
-          break;
-        case "!help":
-          {
-            await reply.ShowHelp();
-          }
-          break;
+        break;
+      // case "help":
+      //   {
+      //     await reply.ShowDMHelp();
+      //   }
+      //   break;
 
-        case "!set":
-          {
+      case "set":
+        {
+          if (this.IsAdmin()) {
             await reply.ShowSetConfig();
           }
-          break;
 
-        case "!close":
-          {
-            await reply.ShowClose();
+        }
+        break;
+
+
+      case "close":
+        {
+          await reply.ShowClose();
+        }
+        break;
+
+      /*
+          Start a configuration DM, allowing for setting config parameters
+          without doing it in the guild.
+
+          Create a variable storing the current sessions guild id. Maybe
+          do it in db, or just in memory.
+          Add a timestamp, so we can timeout the session.
+
+          If timed out, we should tell user to do a new initiation from guild channel
+
+        */
+      case "dm":
+        {
+          const guildId = this.message.guild.id;
+          const dm = await this.message.author.createDM();
+          const dmSession = await this.GetDMConfigSession(dm.id, this.message.author.id, guildId);
+          dmSession.guildId = guildId;
+          await dmSession.save();
+          this.message.author.username
+          dm.send(`Hi ${this.message.author.username}, what can I do for you? Not sure? Tell me to \`help\` you`);
+        }
+        break;
+
+      case "config":
+        {
+          if (this.IsAdmin()) {
+            const guildName = this.message.guild.name;
+            const guildId = this.message.guild.id;
+            const dm = await this.message.author.createDM();
+            const dmSession = await this.GetDMConfigSession(dm.id, this.message.author.id, guildId);
+            dmSession.guildId = guildId;
+            await dmSession.save();
+            this.message.author.username
+            dm.send(`Hi ${this.message.author.username}, i'm ready to change my configuration in the \`${guildName}\` server as you requested.\nUse \`!help\` to get a list of commands`);
           }
-          break;
-        default:
-          await reply.ShowDefault();
-      }
+        }
+        break;
 
-      // await this.botGuild.Save();
+      default: {
+        // if (this.IsDirectMessage()) {
+        //   await reply.ShowDefault();
+        // } else {
+        //   reply.ShowUserDKP();
+        // }
+        reply.ShowUserDKP()
+      }
     }
   }
 
@@ -212,11 +229,13 @@ export class MessageHandler {
   }
 
   private IsMessageFromGuild(): boolean {
-    return this.messageType === "text";
+    const result = this.messageType === "text";
+    return result
   }
 
   private IsDirectMessage(): boolean {
-    return this.messageType === "dm";
+    const result = this.messageType === "dm";
+    return result
   }
 
   private IsAdmin(): boolean {
@@ -238,10 +257,7 @@ export class MessageHandler {
   }
 
   private ShouldMessageBeParsed(): boolean {
-    const shouldMessageBeParsed =
-      (!this.message.author.bot || this.message.author.id !== this.message.client.user.id) &&
-      (this.message.content.startsWith(this.botGuild.GetConfig().trigger) || this.IsDirectMessage());
-
+    const shouldMessageBeParsed = (this.message.content.startsWith(this.botGuild.GetConfig().trigger) || this.IsDirectMessage());
     return shouldMessageBeParsed;
   }
 }

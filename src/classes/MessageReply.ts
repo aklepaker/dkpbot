@@ -232,6 +232,25 @@ export class MessageReply {
         this.message.channel.send(this.content.DKPStatusEmbed(items, searchItem));
     }
 
+
+    public ShowClassTalents(): void {
+        const searchItem = this.rawParams[2];
+        const items = [];
+        this.botGuild.GetTable("MonDKP_DKPTable").forEach(item => {
+            if (item.class.toLocaleLowerCase() == this.rawParams[2].toLocaleLowerCase()) {
+                items.unshift(item);
+            }
+        });
+
+        if (items.length <= 0) {
+            this.message.channel.send(`Sorry, got no results for class '${searchItem}'`);
+            return;
+        }
+
+        this.message.channel.send(this.content.CreateClassTalentsEmbed(items, searchItem));
+    }
+
+
     /**!
       Create and reply user dkp result
     */

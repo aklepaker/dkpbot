@@ -143,4 +143,31 @@ export class MessageContent {
 
     return embed;
   }
+
+  public CreateClassTalentsEmbed(items: any, search: string): MessageEmbed {
+    const embed = new MessageEmbed();
+
+    embed.setTitle(`Current talents for ${search}`).setColor("#ffffff");
+
+    const playerArray = [];
+    const specArray = [];
+    const classArray = [];
+
+    items = sortBy(items, ["player"]).reverse();
+
+    items.forEach(item => {
+      playerArray.unshift(item.player);
+      specArray.unshift(item.spec);
+      classArray.unshift(item.class[0] + item.class.substring(1).toLocaleLowerCase());
+    });
+
+    embed.type = "rich";
+    embed.addField("Player", playerArray, true);
+    embed.addField("Class", classArray, true);
+    embed.addField("Spec", specArray, true);
+
+    embed.setTimestamp();
+
+    return embed;
+  }
 }

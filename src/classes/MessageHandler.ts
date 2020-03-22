@@ -122,6 +122,13 @@ export class MessageHandler {
           reply.ShowClassDKP();
         }
         break;
+
+      case "talents": {
+        reply.ShowClassTalents();
+      }
+        break;
+
+
       case "all":
         {
           reply.ShowAllUsersDKP();

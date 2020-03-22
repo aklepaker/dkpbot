@@ -218,7 +218,7 @@ export class MessageHandler {
       }
     }
     const pResult = performance.now() - pStart;
-    this.metrics.MessageProcessTime.inc(pResult);
+    this.metrics.MessageProcessTime.set(pResult);
   }
 
   private async GetDMConfigSession(dmId: string, userId?: string, guildId?: string): Promise<DMConfigSession> {

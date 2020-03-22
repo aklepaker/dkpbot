@@ -325,10 +325,10 @@ export class MessageReply {
         );
 
         embed.addField(
-            "Show DKP status for a given class",
-            `${trigger} class <class>\n\`\`\`${
+            "Show talents for a given class",
+            `${trigger} talents <class>\n\`\`\`${
             trigger
-            } class priest\`\`\``
+            } talents priest\`\`\``
         );
         if (isAdmin && isDm) {
             embed.addField("Show current configuration", `${trigger} show`);

@@ -302,7 +302,10 @@ export class MessageReply {
             "https://icon-library.net/images/discord-transparent-server-icon/discord-transparent-server-icon-16.jpg"
         );
         embed.setDescription(`Check your DKP status, or check out who got that shiny item in the last raid.`);
-        embed.addField("Show all commands", `${trigger} help`);
+        if (!isDm) {
+            embed.addField("Show all commands", `${trigger} help`);
+        }
+        embed.addField("Start a direct message session with the bort", `${trigger} dm`);
         embed.addField("Search all loots for the given item", `${trigger} search <item>`);
         embed.addField(
             "Show current DKP status for a user",

@@ -1,5 +1,5 @@
 require("dotenv").config();
-import { Bot } from "./bot";
+import { Bot } from "./classes/Bot";
 const bot = new Bot();
 
 bot
@@ -8,5 +8,5 @@ bot
     console.log("Initialize OK, listening for requests");
   })
   .catch(error => {
-    console.log("Error: ", error);
+    console.error("Exited: ", error.message);
   });

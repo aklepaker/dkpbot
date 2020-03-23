@@ -85,7 +85,6 @@ export class MessageHandler {
     }
 
     if (this.isDirectMessage) {
-      this.metrics.MessagesReceivedCounter.inc(1);
       this.dmSession = await this.GetDMConfigSession(this.message.channel.id);
       await this.botGuild.LoadFromId(this.dmSession.guildId);
       reply = new MessageReply(this.message, this.dmSession, this.botGuild);

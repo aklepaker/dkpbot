@@ -17,25 +17,33 @@ export class MessageHandler {
   private client: Client;
   private dmSession: DMConfigSession;
   private metrics: Metrics;
+  private isDirectMessage: boolean;
+  private isMessageFromGuild: boolean;
 
   constructor(message: Message, client: Client, metrics: Metrics) {
     this.client = client;
     this.message = message;
     this.messageType = message.channel.type;
     this.botGuild = new BotGuild();
-    this.ParseParams(message);
     this.metrics = metrics;
+
+    this.isDirectMessage = this.messageType === "dm";
+    this.isMessageFromGuild = this.messageType === "text";
 
   }
 
   private async ParseParams(message: Message): Promise<void> {
     const params = message.content.split(" ");
+    const configTriggerWord = this.botGuild.GetConfig().trigger;
     this.rawParams = params;
 
     switch (this.messageType) {
       case "dm":
-        this.action = params[1];
-        this.parameter = params.slice(2).join(" ");
+        if (params[0].toLocaleLowerCase() == configTriggerWord.toLocaleLowerCase()) {
+          params.shift;
+        }
+        this.action = params[0];
+        this.parameter = params.slice(1).join(" ");
         break;
 
       case "text":
@@ -48,7 +56,7 @@ export class MessageHandler {
 
         if (params.length === 2) {
           this.action = params[1];
-          this.parameter = null;
+          this.parameter = params.slice(1).join(" ");
         }
         break;
     }
@@ -56,8 +64,6 @@ export class MessageHandler {
 
   public async ParseMessage(): Promise<void> {
 
-
-    // this.ParseMessage(message);
     const pStart = performance.now();
 
     // skip messages from myself
@@ -65,40 +71,46 @@ export class MessageHandler {
       return;
     }
 
+
+    this.metrics.MessagesReceivedCounter.inc(1);
+
     /*
     Check if the this.message starts with a trigger, and are executed from a channel
     */
     let reply: MessageReply = null;
 
-    if (this.IsMessageFromGuild()) {
+    if (this.isMessageFromGuild) {
       await this.botGuild.LoadFromId(this.message.guild.id);
       reply = new MessageReply(this.message, null, this.botGuild);
     }
 
-    if (this.IsDirectMessage()) {
+    if (this.isDirectMessage) {
       this.metrics.MessagesReceivedCounter.inc(1);
       this.dmSession = await this.GetDMConfigSession(this.message.channel.id);
       await this.botGuild.LoadFromId(this.dmSession.guildId);
       reply = new MessageReply(this.message, this.dmSession, this.botGuild);
+      if (!this.dmSession.guildId) {
+        reply.ShowNoConfigInitiated();
+        return;
+      }
 
       if (this.dmSession === null) {
         return;
       }
     }
+    this.ParseParams(this.message);
 
     if (!this.ShouldMessageBeParsed()) {
       return;
     }
 
-    // if (this.IsDirectMessage() && (!this.dmSession?.guildId || !this.IsAdmin())) {
+    // if (this.isDirectMessage && (!this.dmSession?.guildId || !this.IsAdmin())) {
     //   reply.ShowNoConfigInitiated();
     //   return;
     // }
     /*
     Don't reply to our own this.messages
     */
-
-    this.metrics.MessagesReceivedCounter.inc(1);
 
     switch (this.action) {
       case "search":
@@ -143,7 +155,7 @@ export class MessageHandler {
 
       case "help":
         {
-          await reply.ShowDKPHelp(this.IsAdmin(), this.IsDirectMessage());
+          await reply.ShowDKPHelp(this.IsAdmin(), this.isDirectMessage);
         }
         break;
 
@@ -173,7 +185,9 @@ export class MessageHandler {
 
       case "close":
         {
-          await reply.ShowClose();
+          if (this.isDirectMessage) {
+            await reply.ShowClose();
+          }
         }
         break;
 
@@ -202,7 +216,7 @@ export class MessageHandler {
 
       case "config":
         {
-          if (this.IsAdmin()) {
+          if (this.IsAdmin() && this.isMessageFromGuild) {
             const guildName = this.message.guild.name;
             const guildId = this.message.guild.id;
             const dm = await this.message.author.createDM();
@@ -216,7 +230,7 @@ export class MessageHandler {
         break;
 
       default: {
-        // if (this.IsDirectMessage()) {
+        // if (this.isDirectMessage) {
         //   await reply.ShowDefault();
         // } else {
         //   reply.ShowUserDKP();
@@ -242,15 +256,7 @@ export class MessageHandler {
     return dmSession;
   }
 
-  private IsMessageFromGuild(): boolean {
-    const result = this.messageType === "text";
-    return result
-  }
 
-  private IsDirectMessage(): boolean {
-    const result = this.messageType === "dm";
-    return result
-  }
 
   private IsAdmin(): boolean {
 
@@ -271,7 +277,7 @@ export class MessageHandler {
   }
 
   private ShouldMessageBeParsed(): boolean {
-    const shouldMessageBeParsed = (this.message.content.startsWith(this.botGuild.GetConfig().trigger) || this.IsDirectMessage());
+    const shouldMessageBeParsed = (this.message.content.startsWith(this.botGuild.GetConfig().trigger) || this.isDirectMessage);
     return shouldMessageBeParsed;
   }
 }

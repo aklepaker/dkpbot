@@ -23,11 +23,17 @@ export class MessageReply {
         this.configSession = configSession;
         this.botGuild = botGuild;
         this.guildName = this.botGuild.GetName();
+
+        if (this.rawParams[0].toLocaleLowerCase() === this.botGuild.GetConfig().trigger.toLocaleLowerCase()) {
+            this.rawParams.shift();
+        }
+
+
     }
 
     public async ShowConfig(): Promise<void> {
         const descriptionObject: GuildConfig = {
-            trigger: "The word used to trigger the bot",
+            trigger: "The word used to trigger the bot in a server",
             roleName: "The admin role needed to configure and update the bot."
         }
 
@@ -44,7 +50,7 @@ export class MessageReply {
         const embed = new MessageEmbed();
 
         embed.setTitle(`Configuration for ${this.botGuild.GetName()}`).setColor("#ffffff");
-        embed.setDescription("Update with `!set <key> <value>`")
+        embed.setDescription("Update with `set <key> <value>`")
         embed.type = "rich";
         embed.addField("Key", keysArray, true);
         embed.addField("Value", valuesArray, true);
@@ -54,29 +60,10 @@ export class MessageReply {
         this.message.channel.send(embed);
     }
 
-    public async ShowDMHelp(): Promise<void> {
-        const embed = new MessageEmbed();
-
-        // const serversJoined = this.client.guilds.cache.size;
-        // const botName = this.client.user.username;
-
-        embed.type = "rich";
-        embed.setTitle(`Help`).setColor("#ffffff");
-        embed.setDescription(`Configuration commands for \`${this.guildName}\``);
-        embed.addField("Show current configuration", `!show`);
-        embed.addField("Set new configuration value", `!set <key> <value>`);
-        // embed.addField("Show stats about bot usage", `!stats`);
-        embed.addField("Show about this bot", `!about`);
-        embed.addField("Exit configuration mode", `!close`);
-        embed.setFooter(`v${version}`);
-        embed.setTimestamp();
-
-        this.message.channel.send(embed);
-    }
 
     public async ShowSetConfig(): Promise<void> {
-        const key = this.botGuild.GetConfigName(this.rawParams[2]);
-        const newValue = this.rawParams[3];
+        const key = this.botGuild.GetConfigName(this.rawParams[1]);
+        const newValue = this.rawParams[2];
 
         if (key === undefined) {
             await this.message.channel.send(
@@ -120,12 +107,12 @@ export class MessageReply {
 
     public ShowNoConfigInitiated(): void {
         this.message.channel.send(
-            "Sorry, I don't talk to strangers.\nStart a conversation with me from your server. Use `help` in your server for more info."
+            "Uhm, I don't know you, and I don't talk to stragers.\nStart a conversation with me from your server. Use `!dkpb dm` from your server to initiate a session with me."
         );
     }
 
     public ShowDefault(): void {
-        this.message.channel.send("Uhm, I don't know that command. Try using `!help` for more information");
+        this.message.channel.send("Uhm, I don't know that command. Try using `help` for more information");
     }
 
     /**
@@ -133,7 +120,7 @@ export class MessageReply {
   */
     public ShowSearch(): void {
         const searchItem = this.rawParams
-            .splice(2)
+            .splice(1)
             .join(" ")
             .toLocaleLowerCase();
         const items = [];
@@ -155,7 +142,7 @@ export class MessageReply {
       Create and reply player loot result
     */
     public ShowLootByPlayer(): void {
-        const player = this.rawParams[2];
+        const player = this.rawParams[1];
         const items = [];
 
         this.botGuild.GetTable("MonDKP_Loot").forEach(item => {
@@ -177,11 +164,11 @@ export class MessageReply {
     */
     public ShowLootByDate(): void {
         const items = [];
-        const searchDate = this.rawParams[2];
+        const searchDate = this.rawParams[1];
         let dateBase;
         let dateFrom;
         let dateTo;
-        const zone = this.rawParams.slice(3).join(" ");
+        const zone = this.rawParams.slice(2).join(" ");
 
         try {
             dateBase = parse(searchDate, "dd.MM.yyyy", new Date());
@@ -216,10 +203,10 @@ export class MessageReply {
       Create and reply class result
     */
     public ShowClassDKP(): void {
-        const searchItem = this.rawParams[2];
+        const searchItem = this.rawParams[1];
         const items = [];
         this.botGuild.GetTable("MonDKP_DKPTable").forEach(item => {
-            if (item.class.toLocaleLowerCase() == this.rawParams[2].toLocaleLowerCase()) {
+            if (item.class.toLocaleLowerCase() == searchItem.toLocaleLowerCase()) {
                 items.unshift(item);
             }
         });
@@ -234,10 +221,10 @@ export class MessageReply {
 
 
     public ShowClassTalents(): void {
-        const searchItem = this.rawParams[2];
+        const searchItem = this.rawParams[1];
         const items = [];
         this.botGuild.GetTable("MonDKP_DKPTable").forEach(item => {
-            if (item.class.toLocaleLowerCase() == this.rawParams[2].toLocaleLowerCase()) {
+            if (item.class.toLocaleLowerCase() == searchItem.toLocaleLowerCase()) {
                 items.unshift(item);
             }
         });
@@ -251,30 +238,31 @@ export class MessageReply {
     }
 
 
-    /**!
+    /**
       Create and reply user dkp result
     */
     public ShowUserDKP(): void {
         const items = [];
+        const player = this.rawParams[0].toLocaleLowerCase();
         this.botGuild.GetTable("MonDKP_DKPTable").forEach(item => {
-            if (item.player.toLocaleLowerCase() == this.rawParams[1].toLocaleLowerCase()) {
+            if (item.player.toLocaleLowerCase() == player) {
                 items.push(item);
             }
         });
 
         if (items.length <= 0) {
-            this.message.channel.send(`Sorry, I don't know '${this.rawParams[1]}'`);
+            this.message.channel.send(`Sorry, I don't know '${player}'`);
             return;
         }
 
-        this.message.channel.send(this.content.DKPStatusEmbed(items, this.rawParams[1]));
+        this.message.channel.send(this.content.DKPStatusEmbed(items, player));
     }
 
     /**
       Create and reply all users dkp result
     */
     public ShowAllUsersDKP(): void {
-        const searchItem = this.rawParams[2];
+        const searchItem = this.rawParams[1];
         const items = [];
         this.botGuild.GetTable("MonDKP_DKPTable").forEach(item => {
             items.unshift(item);
@@ -288,7 +276,7 @@ export class MessageReply {
     public ShowDKPHelp(isAdmin: boolean, isDm: boolean): void {
         const embed = new MessageEmbed();
 
-        const trigger = this.botGuild.GetConfig().trigger;
+        const trigger = !isDm ? this.botGuild.GetConfig().trigger : "";
 
         // const serversJoined = this.client.guilds.cache.size;
         // const botName = this.client.user.username;
@@ -305,7 +293,10 @@ export class MessageReply {
         if (!isDm) {
             embed.addField("Show all commands", `${trigger} help`);
         }
-        embed.addField("Start a direct message session with the bort", `${trigger} dm`);
+        if (!isDm) {
+            embed.addField("Start a direct message session with the bort", `${trigger} dm`);
+        }
+
         embed.addField("Search all loots for the given item", `${trigger} search <item>`);
         embed.addField(
             "Show current DKP status for a user",
@@ -337,7 +328,7 @@ export class MessageReply {
             embed.addField("Show current configuration", `${trigger} show`);
             embed.addField("Set new configuration value", `${trigger} set <key> <value>`);
             // embed.addField("Show stats about bot usage", `!stats`);
-            embed.addField("Show about this bot", `${trigger} about`);
+            // embed.addField("Show about this bot", `${trigger} about`);
             embed.addField("Exit configuration mode", `${trigger} close`);
         }
 

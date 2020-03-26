@@ -1,13 +1,13 @@
 {
   "name": "dkpbot",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "",
   "main": "index.js",
   "scripts": {
     "watch": "tsc -p tsconfig.json -w",
     "build": "npx genversion --es6 --semi src/version.ts && tsc -p tsconfig.json",
     "start": "npm run build && node dist/index.js",
-    "debug": "node --nolazy --inspect-brk=9229 dist/index.js"
+    "debug": "tsc -p tsconfig.json && node --nolazy --inspect-brk=9229 dist/index.js"
   },
   "author": "",
   "license": "ISC",

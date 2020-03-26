@@ -55,12 +55,7 @@ export class MessageContent {
     const costArray = [];
     const itemArray = [];
 
-    embed.type = "rich";
-    embed.setTitle(`Got ${items.length} result(s) searching for '${search}' `).setColor("#ffffff");
-    embed.setTimestamp();
-
     const sortedItems = sortBy(items, ["cost"]);
-
     sortedItems.reverse().forEach(item => {
       const lootItem = item.loot.substring(item.loot.indexOf("["), item.loot.lastIndexOf("]") + 1);
       const time = format(new Date(item.date * 1000), "dd.MM.yyyy");
@@ -71,9 +66,21 @@ export class MessageContent {
       costArray.unshift(item.cost);
     });
 
-    embed.addField("Item", itemArray, true);
-    embed.addField("Player", playerArray, true);
-    embed.addField("Cost", costArray, true);
+    const isAllTheSame = itemArray.every(i => i === itemArray[0]);
+    embed.type = "rich";
+    const titleText = isAllTheSame ? `Found ${items.length} entries(s) for ${itemArray[0]} ` : `Got ${items.length} result(s) searching for '${search}' `
+    embed.setTitle(titleText).setColor("#ffffff");
+    embed.setTimestamp();
+    if (isAllTheSame) {
+      embed.addField("Player", playerArray, true);
+      embed.addField("Cost", costArray, true);
+      embed.addField("Date", timeArray, true);
+    } else {
+      embed.addField("Item", itemArray, true);
+      embed.addField("Player", playerArray, true);
+      embed.addField("Cost", costArray, true);
+    }
+
 
     return embed;
   }

@@ -112,6 +112,7 @@ export class MessageHandler {
     */
 
     switch (this.action) {
+      case "item":
       case "search":
         {
           reply.ShowSearch();
@@ -134,6 +135,7 @@ export class MessageHandler {
         }
         break;
 
+      case "spec":
       case "talents": {
         reply.ShowClassTalents();
       }

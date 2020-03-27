@@ -1,6 +1,6 @@
 import { MessageEmbed } from "discord.js";
-import { format } from "date-fns";
-import { sortBy } from "lodash";
+import { format, parse, getUnixTime } from "date-fns";
+import { sortBy, orderBy } from "lodash";
 
 export class MessageContent {
   constructor() {
@@ -29,7 +29,7 @@ export class MessageContent {
     embed.setTimestamp();
 
     items.forEach(item => {
-      const lootItem = item.loot.substring(item.loot.indexOf("["), item.loot.lastIndexOf("]") + 1);
+      const lootItem = this.parseLootString(item.loot);
 
       const time = format(new Date(item.date * 1000), "dd.MM.yyyy");
       timeArray.unshift(time);
@@ -58,14 +58,29 @@ export class MessageContent {
     const costArray = [];
     const itemArray = [];
 
-    const isAllTheSame = items.every(i => this.parseLootString(i.loot) === this.parseLootString(items[0].loot));
+    /*
+    Check if it's the same item for each entry
+    */
+    const isSameItem = items.every(i => this.parseLootString(i.loot) === this.parseLootString(items[0].loot));
+
+    /*
+    Parse a date only so we can sort on it
+    */
+    items.forEach(item => {
+      item.parsedDate = getUnixTime(parse(format(new Date(item.date * 1000), "dd.MM.yyyy"), "dd.MM.yyyy", new Date()));
+    })
 
     let sortedItems = sortBy(items, ["cost"]);
-    if (isAllTheSame) {
-      sortedItems = sortBy(items, ["date"]).reverse();
+
+    if (isSameItem) {
+      /*
+      Sort by date, then by cost asc
+      */
+      sortedItems = orderBy(items, ["parsedDate", "cost"], ['asc', "desc"]);
     }
 
-    sortedItems.reverse().forEach(item => {
+
+    sortedItems.forEach(item => {
       const lootItem = this.parseLootString(item.loot);
       const time = format(new Date(item.date * 1000), "dd.MM.yyyy");
 
@@ -77,10 +92,10 @@ export class MessageContent {
 
     // const isAllTheSame = itemArray.every(i => i === itemArray[0]);
     embed.type = "rich";
-    const titleText = isAllTheSame ? `Found ${items.length} entries(s) for ${itemArray[0]} ` : `Got ${items.length} result(s) searching for '${search}' `
+    const titleText = isSameItem ? `Found ${items.length} entries(s) for ${itemArray[0]} ` : `Got ${items.length} result(s) searching for '${search}' `
     embed.setTitle(titleText).setColor("#ffffff");
     embed.setTimestamp();
-    if (isAllTheSame) {
+    if (isSameItem) {
       embed.addField("Player", playerArray, true);
       embed.addField("Cost", costArray, true);
       embed.addField("Date", timeArray, true);

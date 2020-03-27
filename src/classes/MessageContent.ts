@@ -7,6 +7,9 @@ export class MessageContent {
     //
   }
 
+  private parseLootString(loot: string): string {
+    return loot.substring(loot.indexOf("["), loot.lastIndexOf("]") + 1)
+  }
   /**
     Create embed reply message for player loot
   */
@@ -55,9 +58,15 @@ export class MessageContent {
     const costArray = [];
     const itemArray = [];
 
-    const sortedItems = sortBy(items, ["cost"]);
+    const isAllTheSame = items.every(i => this.parseLootString(i.loot) === this.parseLootString(items[0].loot));
+
+    let sortedItems = sortBy(items, ["cost"]);
+    if (isAllTheSame) {
+      sortedItems = sortBy(items, ["date"]).reverse();
+    }
+
     sortedItems.reverse().forEach(item => {
-      const lootItem = item.loot.substring(item.loot.indexOf("["), item.loot.lastIndexOf("]") + 1);
+      const lootItem = this.parseLootString(item.loot);
       const time = format(new Date(item.date * 1000), "dd.MM.yyyy");
 
       itemArray.unshift(`${lootItem}`);
@@ -66,7 +75,7 @@ export class MessageContent {
       costArray.unshift(item.cost);
     });
 
-    const isAllTheSame = itemArray.every(i => i === itemArray[0]);
+    // const isAllTheSame = itemArray.every(i => i === itemArray[0]);
     embed.type = "rich";
     const titleText = isAllTheSame ? `Found ${items.length} entries(s) for ${itemArray[0]} ` : `Got ${items.length} result(s) searching for '${search}' `
     embed.setTitle(titleText).setColor("#ffffff");

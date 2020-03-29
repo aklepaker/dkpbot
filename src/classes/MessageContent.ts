@@ -31,14 +31,24 @@ export class MessageContent {
 
   private async CreateTooltipImage(id: number): Promise<string> {
     if (!fs.existsSync(`tmp/${id}.png`)) {
+      /*
+      Create headless browser
+      */
       this.browser = await puppeteer.launch(this.browserOptions)
       const page = await this.browser.newPage()
       const document = page.document;
+
+      /*
+      Get tooltip, trigger it and wait for it to be loaded
+      */
       await page.setContent(ToolTip(id.toString()))
       await page.hover("#tooltipref");
       await page.waitForSelector(".q4");
       await page.click("#tooltipref");
 
+      /*
+      Get correct dimensions
+      */
       const rect = await page.evaluate(() => {
         const element = document.querySelectorAll("#size");
         const { x, y, width, height } = element[0].getBoundingClientRect();
@@ -51,6 +61,9 @@ export class MessageContent {
         };
       });
 
+      /*
+      Generate image
+      */
       await page.screenshot({
         path: `tmp/${id}.png`,
         omitBackground: true,
@@ -115,7 +128,8 @@ export class MessageContent {
       return null;
     }
     const embed = new MessageEmbed();
-    let imageUrl = "";
+    embed.type = "rich";
+
     let thumbnailUrl = "";
     let wowheadItem: any = {};
     let tooltip = "";
@@ -144,6 +158,10 @@ export class MessageContent {
       Sort by date, then by cost asc
       */
       sortedItems = orderBy(items, ["parsedDate", "cost"], ['asc', "desc"]);
+
+      /*
+      Fetch details from wowhead
+      */
       const itemTmp = items[0].loot.substring(items[0].loot.indexOf(":") + 1);
       itemId = itemTmp.substring(0, itemTmp.indexOf(":"));
       const data = await fetch(`https://www.wowhead.com/item=${itemId}&xml`).then(res => { return res.text() });
@@ -152,13 +170,13 @@ export class MessageContent {
         wowheadItem = res.wowhead
       });
 
-      imageUrl = `https://wow.zamimg.com/images/wow/icons/large/${wowheadItem?.item[0].icon[0]._}.jpg`
       thumbnailUrl = `https://wow.zamimg.com/images/wow/icons/medium/${wowheadItem?.item[0].icon[0]._}.jpg`
-      // console.log(wowheadItem?.item[0].icon[0]._);
+
+      /*
+      Create tooltip image from wowhead tooltip
+      */
       tooltip = await this.CreateTooltipImage(itemId);
     }
-
-
 
     sortedItems.forEach(item => {
       const lootItem = this.parseLootString(item.loot);
@@ -170,8 +188,6 @@ export class MessageContent {
       costArray.unshift(item.cost);
     });
 
-    // const isAllTheSame = itemArray.every(i => i === itemArray[0]);
-    embed.type = "rich";
     const titleText = isSameItem ? `Found ${items.length} player(s) with ${this.parseLootString(items[0].loot, true)}` : `Got ${items.length} result(s) searching for '${search}' `
 
     embed.setTimestamp();
@@ -182,12 +198,8 @@ export class MessageContent {
       embed.setAuthor(`${this.parseLootString(items[0].loot, true)}`, thumbnailUrl, wowheadItem?.item[0].link[0])
       embed.setTitle(titleText)
       embed.setColor("#a335ee");
-      // embed.setDescription(`[${itemArray[0]}](${wowheadItem?.item[0].link[0]})`)
-      // embed.setImage(`attachment://${itemId}.png`);
       embed.setThumbnail(`attachment://${itemId}.png`);
-      // embed.setFooter("test", `attachment://${itemId}.png`)
-      // embed.setThumbnail(thumbnailUrl);
-      embed.setFooter("Item information from Wowhead", "https://wow.zamimg.com/images/logos/wh-logo-54.png")
+      embed.setFooter("Item information from classic.wowhead.com", "https://wow.zamimg.com/images/logos/wh-logo-54.png")
       embed.addField("Player", playerArray, true);
       embed.addField("Cost", costArray, true);
       embed.addField("Date", timeArray, true);

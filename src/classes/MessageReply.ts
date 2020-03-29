@@ -278,9 +278,6 @@ export class MessageReply {
 
         const trigger = !isDm ? this.botGuild.GetConfig().trigger : "";
 
-        // const serversJoined = this.client.guilds.cache.size;
-        // const botName = this.client.user.username;
-
         embed.type = "rich";
         embed.setTitle(`Help`).setColor("#ffffff");
         embed.setImage(

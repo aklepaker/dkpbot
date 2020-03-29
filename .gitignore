@@ -7,3 +7,4 @@ package-lock.json
 *.code-workspace
 .env
 src/version.ts
+tmp/*.png

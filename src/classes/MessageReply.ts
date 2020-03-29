@@ -118,7 +118,7 @@ export class MessageReply {
     /**
     Create and reply search result 
   */
-    public ShowSearch(): void {
+    public async ShowSearch(): Promise<void> {
         const searchItem = this.rawParams
             .splice(1)
             .join(" ")
@@ -135,7 +135,7 @@ export class MessageReply {
             return;
         }
 
-        this.message.channel.send(this.content.SearchEmbed(items, searchItem));
+        this.message.channel.send(await this.content.SearchEmbed(items, searchItem));
     }
 
     /**

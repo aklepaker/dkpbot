@@ -1,13 +1,76 @@
-import { MessageEmbed } from "discord.js";
+import { MessageEmbed, MessageAttachment } from "discord.js";
 import { format, parse, getUnixTime } from "date-fns";
 import { sortBy, orderBy } from "lodash";
+import { parseString } from 'xml2js';
+import fetch from 'node-fetch'
+// import { puppeteer } from 'puppeteer';
+import puppeteer = require('puppeteer');
+import ToolTip from '../objects/ToolTip'
+import * as fs from "fs";
 
 export class MessageContent {
+  private browser: any;
+  private browserOptions: any;
   constructor() {
     //
+    this.browserOptions = {
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--single-process', // <- this one doesn't works in Windows
+        '--disable-gpu'
+      ],
+      headless: true
+    }
+
   }
 
-  private parseLootString(loot: string): string {
+  private async CreateTooltipImage(id: number): Promise<string> {
+    if (!fs.existsSync(`tmp/${id}.png`)) {
+      this.browser = await puppeteer.launch(this.browserOptions)
+      const page = await this.browser.newPage()
+      const document = page.document;
+      await page.setContent(ToolTip(id.toString()))
+      await page.hover("#tooltipref");
+      await page.waitForSelector(".q4");
+      await page.click("#tooltipref");
+
+      const rect = await page.evaluate(() => {
+        const element = document.querySelectorAll("#size");
+        const { x, y, width, height } = element[0].getBoundingClientRect();
+        return {
+          left: x,
+          top: y,
+          width,
+          height,
+          id: element.id
+        };
+      });
+
+      await page.screenshot({
+        path: `tmp/${id}.png`,
+        omitBackground: true,
+        clip: {
+          x: rect.left,
+          y: rect.top,
+          width: rect.width,
+          height: rect.height
+        }
+      });
+      await this.browser.close()
+    }
+
+    return `tmp/${id}.png`;
+  }
+
+  private parseLootString(loot: string, removeBrackets = false): string {
+    if (removeBrackets) {
+      return loot.substring(loot.indexOf("[") + 1, loot.lastIndexOf("]"))
+    }
     return loot.substring(loot.indexOf("["), loot.lastIndexOf("]") + 1)
   }
   /**
@@ -47,12 +110,16 @@ export class MessageContent {
   /**
     Create embed reply message for search loot
   */
-  public SearchEmbed(items: any[], search: string): MessageEmbed {
+  public async SearchEmbed(items: any[], search: string): Promise<MessageEmbed> {
     if (items.length <= 0) {
       return null;
     }
     const embed = new MessageEmbed();
-
+    let imageUrl = "";
+    let thumbnailUrl = "";
+    let wowheadItem: any = {};
+    let tooltip = "";
+    let itemId = 0;
     const playerArray = [];
     const timeArray = [];
     const costArray = [];
@@ -77,7 +144,20 @@ export class MessageContent {
       Sort by date, then by cost asc
       */
       sortedItems = orderBy(items, ["parsedDate", "cost"], ['asc', "desc"]);
+      const itemTmp = items[0].loot.substring(items[0].loot.indexOf(":") + 1);
+      itemId = itemTmp.substring(0, itemTmp.indexOf(":"));
+      const data = await fetch(`https://www.wowhead.com/item=${itemId}&xml`).then(res => { return res.text() });
+
+      parseString(data, (err, res) => {
+        wowheadItem = res.wowhead
+      });
+
+      imageUrl = `https://wow.zamimg.com/images/wow/icons/large/${wowheadItem?.item[0].icon[0]._}.jpg`
+      thumbnailUrl = `https://wow.zamimg.com/images/wow/icons/medium/${wowheadItem?.item[0].icon[0]._}.jpg`
+      // console.log(wowheadItem?.item[0].icon[0]._);
+      tooltip = await this.CreateTooltipImage(itemId);
     }
+
 
 
     sortedItems.forEach(item => {
@@ -92,10 +172,22 @@ export class MessageContent {
 
     // const isAllTheSame = itemArray.every(i => i === itemArray[0]);
     embed.type = "rich";
-    const titleText = isSameItem ? `Found ${items.length} entries(s) for ${itemArray[0]} ` : `Got ${items.length} result(s) searching for '${search}' `
-    embed.setTitle(titleText).setColor("#ffffff");
+    const titleText = isSameItem ? `Found ${items.length} player(s) with ${this.parseLootString(items[0].loot, true)}` : `Got ${items.length} result(s) searching for '${search}' `
+
     embed.setTimestamp();
     if (isSameItem) {
+
+      embed.files = [];
+      embed.files.push(new MessageAttachment(tooltip, `${itemId}.png`));
+      embed.setAuthor(`${this.parseLootString(items[0].loot, true)}`, thumbnailUrl, wowheadItem?.item[0].link[0])
+      embed.setTitle(titleText)
+      embed.setColor("#a335ee");
+      // embed.setDescription(`[${itemArray[0]}](${wowheadItem?.item[0].link[0]})`)
+      // embed.setImage(`attachment://${itemId}.png`);
+      embed.setThumbnail(`attachment://${itemId}.png`);
+      // embed.setFooter("test", `attachment://${itemId}.png`)
+      // embed.setThumbnail(thumbnailUrl);
+      embed.setFooter("Item information from Wowhead", "https://wow.zamimg.com/images/logos/wh-logo-54.png")
       embed.addField("Player", playerArray, true);
       embed.addField("Cost", costArray, true);
       embed.addField("Date", timeArray, true);
@@ -150,6 +242,7 @@ export class MessageContent {
   */
   public DKPStatusEmbed(items: any, search: string): MessageEmbed {
     const embed = new MessageEmbed();
+
 
     embed.setTitle(`Current DKP status for ${search}`).setColor("#ffffff");
 

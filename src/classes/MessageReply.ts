@@ -118,7 +118,7 @@ export class MessageReply {
     /**
     Create and reply search result 
   */
-    public ShowSearch(): void {
+    public async ShowSearch(): Promise<void> {
         const searchItem = this.rawParams
             .splice(1)
             .join(" ")
@@ -135,7 +135,7 @@ export class MessageReply {
             return;
         }
 
-        this.message.channel.send(this.content.SearchEmbed(items, searchItem));
+        this.message.channel.send(await this.content.SearchEmbed(items, searchItem));
     }
 
     /**
@@ -277,9 +277,6 @@ export class MessageReply {
         const embed = new MessageEmbed();
 
         const trigger = !isDm ? this.botGuild.GetConfig().trigger : "";
-
-        // const serversJoined = this.client.guilds.cache.size;
-        // const botName = this.client.user.username;
 
         embed.type = "rich";
         embed.setTitle(`Help`).setColor("#ffffff");

@@ -115,7 +115,7 @@ export class MessageHandler {
       case "item":
       case "search":
         {
-          reply.ShowSearch();
+          await reply.ShowSearch();
         }
         break;
       case "loot":

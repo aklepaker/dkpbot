@@ -40,7 +40,7 @@ export class MessageHandler {
     switch (this.messageType) {
       case "dm":
         if (params[0].toLocaleLowerCase() == configTriggerWord.toLocaleLowerCase()) {
-          params.shift;
+          params.shift();
         }
         this.action = params[0];
         this.parameter = params.slice(1).join(" ");

@@ -118,6 +118,12 @@ export class MessageHandler {
           await reply.ShowSearch();
         }
         break;
+
+      case "boss":
+        {
+          await reply.ShowBossSearch();
+        }
+        break;
       case "loot":
         {
           reply.ShowLootByPlayer();

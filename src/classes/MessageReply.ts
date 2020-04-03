@@ -117,7 +117,7 @@ export class MessageReply {
 
     /**
     Create and reply search result 
-  */
+    */
     public async ShowSearch(): Promise<void> {
         const searchItem = this.rawParams
             .splice(1)
@@ -136,6 +136,29 @@ export class MessageReply {
         }
 
         this.message.channel.send(await this.content.SearchEmbed(items, searchItem));
+    }
+
+    /**
+    Create boss searc result 
+    */
+    public async ShowBossSearch(): Promise<void> {
+        const searchItem = this.rawParams
+            .splice(1)
+            .join(" ")
+            .toLocaleLowerCase();
+        const items = [];
+        this.botGuild.GetTable("MonDKP_Loot").forEach(item => {
+            if (item.boss.toLocaleLowerCase().indexOf(searchItem) > -1) {
+                items.unshift(item);
+            }
+        });
+
+        if (items.length <= 0) {
+            this.message.channel.send(`No match searching for '${searchItem}'`);
+            return;
+        }
+
+        this.message.channel.send(await this.content.SearchBossEmbed(items, searchItem));
     }
 
     /**
@@ -321,6 +344,9 @@ export class MessageReply {
             trigger
             } talents priest\`\`\``
         );
+
+        embed.addField("Search all boss loots", `${trigger} boss <name>\n\`\`\`${trigger} boss lucifron\n${trigger} boss nef\n\`\`\``);
+
         if (isAdmin && isDm) {
             embed.addField("Show current configuration", `${trigger} show`);
             embed.addField("Set new configuration value", `${trigger} set <key> <value>`);

@@ -204,11 +204,64 @@ export class MessageContent {
       embed.addField("Cost", costArray, true);
       embed.addField("Date", timeArray, true);
     } else {
+      embed.setTitle(titleText)
       embed.addField("Item", itemArray, true);
       embed.addField("Player", playerArray, true);
       embed.addField("Cost", costArray, true);
     }
 
+
+    return embed;
+  }
+
+  /**
+    Create embed reply message for search loot
+  */
+  public async SearchBossEmbed(items: any[], search: string): Promise<MessageEmbed> {
+    if (items.length <= 0) {
+      return null;
+    }
+    let embed = new MessageEmbed();
+    embed.type = "rich";
+
+    const playerArray = [];
+    const timeArray = [];
+    const costArray = [];
+    const itemArray = [];
+
+
+    /*
+    Parse a date only so we can sort on it
+    */
+    items.forEach(item => {
+      item.parsedDate = getUnixTime(parse(format(new Date(item.date * 1000), "dd.MM.yyyy"), "dd.MM.yyyy", new Date()));
+    })
+
+    const sortedItems = orderBy(items, ["parsedDate", "cost"], ['asc', "desc"]);
+
+    sortedItems.forEach(item => {
+      const lootItem = this.parseLootString(item.loot);
+      const time = format(new Date(item.date * 1000), "dd.MM.yyyy");
+
+      itemArray.unshift(`${lootItem}`);
+      playerArray.unshift(item.player);
+      timeArray.unshift(time);
+      costArray.unshift(item.cost);
+    });
+
+    const titleText = `Showing ${sortedItems.length} result(s) from boss ${sortedItems[0].boss}`
+
+    embed.setTimestamp();
+
+    embed.setTitle(titleText)
+    embed.addField("Item", itemArray, true);
+    embed.addField("Player", playerArray, true);
+    // embed.addField("Cost", costArray, true);
+    embed.addField("Date", timeArray, true);
+
+    if (embed.fields[0]?.value.length > 1024 || embed.fields[1]?.value.length > 1024 || embed.fields[2]?.value.length > 1024) {
+      embed = await this.SearchBossEmbed(items.slice(0, items.length - 1), search);
+    }
 
     return embed;
   }

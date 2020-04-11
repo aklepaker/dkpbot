@@ -290,7 +290,7 @@ export class MessageReply {
         this.botGuild.GetTable("MonDKP_DKPTable").forEach(item => {
             items.unshift(item);
         });
-        this.message.channel.send(this.content.DKPStatusEmbed(items, searchItem));
+        this.message.channel.send(this.content.DKPStatusEmbed(items, "all players"));
     }
 
     /**

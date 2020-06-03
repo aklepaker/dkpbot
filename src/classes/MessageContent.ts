@@ -1,11 +1,11 @@
 import { MessageEmbed, MessageAttachment } from "discord.js";
 import { format, parse, getUnixTime } from "date-fns";
 import { sortBy, orderBy } from "lodash";
-import { parseString } from 'xml2js';
-import fetch from 'node-fetch'
+import { parseString } from "xml2js";
+import fetch from "node-fetch";
 // import { puppeteer } from 'puppeteer';
-import puppeteer = require('puppeteer');
-import ToolTip from '../objects/ToolTip'
+import puppeteer = require("puppeteer");
+import ToolTip from "../objects/ToolTip";
 import * as fs from "fs";
 
 export class MessageContent {
@@ -15,18 +15,17 @@ export class MessageContent {
     //
     this.browserOptions = {
       args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--single-process', // <- this one doesn't works in Windows
-        '--disable-gpu'
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-accelerated-2d-canvas",
+        "--no-first-run",
+        "--no-zygote",
+        "--single-process", // <- this one doesn't works in Windows
+        "--disable-gpu",
       ],
-      headless: true
-    }
-
+      headless: true,
+    };
   }
 
   private async CreateTooltipImage(id: number): Promise<string> {
@@ -34,14 +33,14 @@ export class MessageContent {
       /*
       Create headless browser
       */
-      this.browser = await puppeteer.launch(this.browserOptions)
-      const page = await this.browser.newPage()
+      this.browser = await puppeteer.launch(this.browserOptions);
+      const page = await this.browser.newPage();
       const document = page.document;
 
       /*
       Get tooltip, trigger it and wait for it to be loaded
       */
-      await page.setContent(ToolTip(id.toString()))
+      await page.setContent(ToolTip(id.toString()));
       await page.hover("#tooltipref");
       await page.waitForSelector(".q4");
       await page.click("#tooltipref");
@@ -57,7 +56,7 @@ export class MessageContent {
           top: y,
           width,
           height,
-          id: element.id
+          id: element.id,
         };
       });
 
@@ -71,10 +70,10 @@ export class MessageContent {
           x: rect.left,
           y: rect.top,
           width: rect.width,
-          height: rect.height
-        }
+          height: rect.height,
+        },
       });
-      await this.browser.close()
+      await this.browser.close();
     }
 
     return `tmp/${id}.png`;
@@ -82,9 +81,9 @@ export class MessageContent {
 
   private parseLootString(loot: string, removeBrackets = false): string {
     if (removeBrackets) {
-      return loot.substring(loot.indexOf("[") + 1, loot.lastIndexOf("]"))
+      return loot.substring(loot.indexOf("[") + 1, loot.lastIndexOf("]"));
     }
-    return loot.substring(loot.indexOf("["), loot.lastIndexOf("]") + 1)
+    return loot.substring(loot.indexOf("["), loot.lastIndexOf("]") + 1);
   }
   /**
     Create embed reply message for player loot
@@ -104,7 +103,7 @@ export class MessageContent {
     embed.setTitle(`Loot history for ${items[0]?.player}`).setColor("#ffffff");
     embed.setTimestamp();
 
-    items.forEach(item => {
+    items.forEach((item) => {
       const lootItem = this.parseLootString(item.loot);
 
       const time = format(new Date(item.date * 1000), "dd.MM.yyyy");
@@ -142,14 +141,14 @@ export class MessageContent {
     /*
     Check if it's the same item for each entry
     */
-    const isSameItem = items.every(i => this.parseLootString(i.loot) === this.parseLootString(items[0].loot));
+    const isSameItem = items.every((i) => this.parseLootString(i.loot) === this.parseLootString(items[0].loot));
 
     /*
     Parse a date only so we can sort on it
     */
-    items.forEach(item => {
+    items.forEach((item) => {
       item.parsedDate = getUnixTime(parse(format(new Date(item.date * 1000), "dd.MM.yyyy"), "dd.MM.yyyy", new Date()));
-    })
+    });
 
     let sortedItems = sortBy(items, ["cost"]);
 
@@ -157,20 +156,22 @@ export class MessageContent {
       /*
       Sort by date, then by cost asc
       */
-      sortedItems = orderBy(items, ["parsedDate", "cost"], ['asc', "desc"]);
+      sortedItems = orderBy(items, ["parsedDate", "cost"], ["asc", "desc"]);
 
       /*
       Fetch details from wowhead
       */
       const itemTmp = items[0].loot.substring(items[0].loot.indexOf(":") + 1);
       itemId = itemTmp.substring(0, itemTmp.indexOf(":"));
-      const data = await fetch(`https://www.wowhead.com/item=${itemId}&xml`).then(res => { return res.text() });
-
-      parseString(data, (err, res) => {
-        wowheadItem = res.wowhead
+      const data = await fetch(`https://www.wowhead.com/item=${itemId}&xml`).then((res) => {
+        return res.text();
       });
 
-      thumbnailUrl = `https://wow.zamimg.com/images/wow/icons/medium/${wowheadItem?.item[0].icon[0]._}.jpg`
+      parseString(data, (err, res) => {
+        wowheadItem = res.wowhead;
+      });
+
+      thumbnailUrl = `https://wow.zamimg.com/images/wow/icons/medium/${wowheadItem?.item[0].icon[0]._}.jpg`;
 
       /*
       Create tooltip image from wowhead tooltip
@@ -178,7 +179,7 @@ export class MessageContent {
       tooltip = await this.CreateTooltipImage(itemId);
     }
 
-    sortedItems.forEach(item => {
+    sortedItems.forEach((item) => {
       const lootItem = this.parseLootString(item.loot);
       const time = format(new Date(item.date * 1000), "dd.MM.yyyy");
 
@@ -188,28 +189,31 @@ export class MessageContent {
       costArray.unshift(item.cost);
     });
 
-    const titleText = isSameItem ? `Found ${items.length} player(s) with ${this.parseLootString(items[0].loot, true)}` : `Got ${items.length} result(s) searching for '${search}' `
+    const titleText = isSameItem
+      ? `Found ${items.length} player(s) with ${this.parseLootString(items[0].loot, true)}`
+      : `Got ${items.length} result(s) searching for '${search}' `;
 
     embed.setTimestamp();
     if (isSameItem) {
-
       embed.files = [];
       embed.files.push(new MessageAttachment(tooltip, `${itemId}.png`));
-      embed.setAuthor(`${this.parseLootString(items[0].loot, true)}`, thumbnailUrl, wowheadItem?.item[0].link[0])
-      embed.setTitle(titleText)
+      embed.setAuthor(`${this.parseLootString(items[0].loot, true)}`, thumbnailUrl, wowheadItem?.item[0].link[0]);
+      embed.setTitle(titleText);
       embed.setColor("#a335ee");
       embed.setThumbnail(`attachment://${itemId}.png`);
-      embed.setFooter("Item information from classic.wowhead.com", "https://wow.zamimg.com/images/logos/wh-logo-54.png")
+      embed.setFooter(
+        "Item information from classic.wowhead.com",
+        "https://wow.zamimg.com/images/logos/wh-logo-54.png"
+      );
       embed.addField("Player", playerArray, true);
       embed.addField("Cost", costArray, true);
       embed.addField("Date", timeArray, true);
     } else {
-      embed.setTitle(titleText)
+      embed.setTitle(titleText);
       embed.addField("Item", itemArray, true);
       embed.addField("Player", playerArray, true);
       embed.addField("Cost", costArray, true);
     }
-
 
     return embed;
   }
@@ -217,7 +221,7 @@ export class MessageContent {
   /**
     Create embed reply message for search loot
   */
-  public async SearchBossEmbed(items: any[], search: string): Promise<MessageEmbed> {
+  public async SearchBossEmbed(items: any[], search: string, numberOfRowsFromDatabase = -1): Promise<MessageEmbed> {
     if (items.length <= 0) {
       return null;
     }
@@ -229,17 +233,20 @@ export class MessageContent {
     const costArray = [];
     const itemArray = [];
 
+    if (numberOfRowsFromDatabase === -1) {
+      numberOfRowsFromDatabase = items.length;
+    }
 
     /*
     Parse a date only so we can sort on it
     */
-    items.forEach(item => {
+    items.forEach((item) => {
       item.parsedDate = getUnixTime(parse(format(new Date(item.date * 1000), "dd.MM.yyyy"), "dd.MM.yyyy", new Date()));
-    })
+    });
 
-    const sortedItems = orderBy(items, ["parsedDate", "cost"], ['asc', "desc"]);
+    const sortedItems = orderBy(items, ["parsedDate", "cost"], ["asc", "desc"]);
 
-    sortedItems.forEach(item => {
+    sortedItems.forEach((item) => {
       const lootItem = this.parseLootString(item.loot);
       const time = format(new Date(item.date * 1000), "dd.MM.yyyy");
 
@@ -249,18 +256,31 @@ export class MessageContent {
       costArray.unshift(item.cost);
     });
 
-    const titleText = `Showing ${sortedItems.length} result(s) from boss ${sortedItems[0].boss}`
+    const titleText = `Showing ${sortedItems.length} ${
+      numberOfRowsFromDatabase > 0 ? "of " + numberOfRowsFromDatabase : ""
+    } result(s) from boss ${sortedItems[0].boss}`;
 
     embed.setTimestamp();
 
-    embed.setTitle(titleText)
+    embed.setTitle(titleText);
+
+    if (numberOfRowsFromDatabase !== items.length) {
+      embed.setDescription(
+        `The search result is limited to only show the most recent items due to message size restrictions.`
+      );
+    }
+
     embed.addField("Item", itemArray, true);
     embed.addField("Player", playerArray, true);
     // embed.addField("Cost", costArray, true);
     embed.addField("Date", timeArray, true);
 
-    if (embed.fields[0]?.value.length > 1024 || embed.fields[1]?.value.length > 1024 || embed.fields[2]?.value.length > 1024) {
-      embed = await this.SearchBossEmbed(items.slice(0, items.length - 1), search);
+    if (
+      embed.fields[0]?.value.length > 1024 ||
+      embed.fields[1]?.value.length > 1024 ||
+      embed.fields[2]?.value.length > 1024
+    ) {
+      embed = await this.SearchBossEmbed(items.slice(1, items.length), search, numberOfRowsFromDatabase);
     }
 
     return embed;
@@ -285,7 +305,7 @@ export class MessageContent {
     embed.setTitle(`There were ${items.length} item(s) distributed in ${zone} on ${search}`).setColor("#ffffff");
     embed.setTimestamp();
 
-    items.forEach(item => {
+    items.forEach((item) => {
       const lootItem = item.loot.substring(item.loot.indexOf("["), item.loot.lastIndexOf("]") + 1);
       const cost = item.cost;
 
@@ -308,7 +328,6 @@ export class MessageContent {
   public DKPStatusEmbed(items: any, search: string): MessageEmbed {
     const embed = new MessageEmbed();
 
-
     embed.setTitle(`Current DKP status for ${search}`).setColor("#ffffff");
 
     const playerArray = [];
@@ -317,7 +336,7 @@ export class MessageContent {
 
     items = sortBy(items, ["dkp"]);
 
-    items.forEach(item => {
+    items.forEach((item) => {
       playerArray.unshift(item.player);
       dkpArray.unshift(item.dkp);
       classArray.unshift(item.class[0] + item.class.substring(1).toLocaleLowerCase());
@@ -344,7 +363,7 @@ export class MessageContent {
 
     items = sortBy(items, ["player"]).reverse();
 
-    items.forEach(item => {
+    items.forEach((item) => {
       playerArray.unshift(item.player);
       specArray.unshift(item.spec);
       classArray.unshift(item.class[0] + item.class.substring(1).toLocaleLowerCase());
